@@ -1,0 +1,291 @@
+{
+  "Comment": "Step Functions integration with Athena through Lambda Functions.",
+  "StartAt": "CreateDatabase",
+  "States": {
+    "CreateDatabase": {
+    "Type": "Task",
+    "Resource": "arn:aws:states:::lambda:invoke",
+    "Parameters": {
+    "FunctionName": "${LambdaAthenaExecution.Arn}",
+    "Payload": {
+      "region": "us-west-2",
+      "database": "c360view_stage",
+      "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+      "path": "athena_query_exec/regularoutput",
+      "drop":"SELECT 1;",
+      "query": "CREATE DATABASE IF NOT EXISTS c360view_stage;"
+
+                     }
+                   },
+      "ResultPath": "$.taskresult",
+      "Next": "finishcreatedb"
+    },
+    "finishcreatedb": {
+        "Type": "Wait",
+        "Seconds": 1,
+        "Next": "Done"
+      },
+    "Done": {
+            "Type": "Pass",
+            "Next": "TransformData"
+        },
+
+
+
+
+    "TransformData": {
+      "Type": "Parallel",
+      "Next": "TransactionSTG",
+      "ResultPath": "$.TransformData",
+      "Branches": [
+        { "StartAt": "TransformTableCustomer",
+        "States": {
+            "TransformTableCustomer": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+              "FunctionName": "${LambdaAthenaExecution.Arn}",
+              "Payload": {
+                "region": "us-west-2",
+                "database": "c360view_stage",
+                "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                "path": "athena_query_exec/regularoutput",
+                "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                "deletelocation": "crm/customer_pqt",
+                "drop": "DROP TABLE c360view_stage.customer_pqt",
+                "query": "CREATE TABLE c360view_stage.customer_pqt  WITH ( external_location = 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/crm/customer_pqt/', format = 'PARQUET' ) AS  WITH ranked_messages AS       (SELECT c.*,           ROW_NUMBER()          OVER ( PARTITION BY client_id) AS rn      FROM c360view_raw.crm AS c )  SELECT *,           CAST(birth_date AS date) AS b_date  FROM ranked_messages  WHERE rn = 1  ORDER BY  client_id;   "
+                               }
+                             },
+                "ResultPath": "$.taskresultcustomer",
+                "Next": "QueryResultcustomer"
+              },
+            "QueryResultcustomer": {
+                "Type": "Task",
+                "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                "InputPath" :"$.taskresultcustomer.Payload",
+                "ResultPath":"$.queryexeccustomer",
+                "Next": "IsQueryFinishedcustomer"
+              },
+            "IsQueryFinishedcustomer": {
+              "Type": "Choice",
+                  "Choices": [
+                      {
+                          "Variable": "$.queryexeccustomer",
+                          "StringEquals": "RUNNING",
+                          "Next": "wait_one_secondcustomer"
+                      },
+                      {
+                          "Variable": "$.queryexeccustomer",
+                          "StringEquals": "QUEUED",
+                          "Next": "wait_3_secondcustomer"
+                      }
+                  ],
+                  "Default": "Donecustomer"
+                  },
+            "wait_3_secondcustomer": {
+                "Type": "Wait",
+                "Seconds": 3,
+                "Next": "QueryResultcustomer"
+                },
+            "wait_one_secondcustomer": {
+                "Type": "Wait",
+                "Seconds": 1,
+                "Next": "QueryResultcustomer"
+                },
+            "Donecustomer": {
+                            "Type": "Pass",
+                            "End": true
+                }
+                }
+
+        },
+        { "StartAt": "TransformTableAccount",
+        "States": {
+            "TransformTableAccount": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+              "FunctionName": "${LambdaAthenaExecution.Arn}",
+              "Payload": {
+                "region": "us-west-2",
+                "database": "c360view_stage",
+                "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                "path": "athena_query_exec/regularoutput",
+                "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                "deletelocation": "origination/account_pqt",
+                "drop": "DROP TABLE c360view_stage.account_pqt",
+                "query": "CREATE TABLE c360view_stage.account_pqt  WITH (        external_location = 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/origination/account_pqt/',        format = 'PARQUET'  )  AS  WITH ranked_messages AS (    SELECT col0 as account_id, col1 as branch_id, col2 as frequency, col3 as creation_date, ROW_NUMBER() OVER ( PARTITION BY col0) AS rn    FROM c360view_raw.account AS a  )  SELECT *, date_parse(creation_date,'%Y-%m-%dT%H:%i:%s.%f') AS cr_date FROM ranked_messages WHERE rn = 2 ORDER BY account_id ;     "
+                               }
+                             },
+                "ResultPath": "$.taskresultaccount",
+                "Next": "QueryResultaccount"
+              },
+            "QueryResultaccount": {
+                "Type": "Task",
+                "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                "InputPath" :"$.taskresultaccount.Payload",
+                "ResultPath":"$.queryexecaccount",
+                "Next": "IsQueryFinishedaccount"
+              },
+            "IsQueryFinishedaccount": {
+              "Type": "Choice",
+                  "Choices": [
+                      {
+                          "Variable": "$.queryexecaccount",
+                          "StringEquals": "RUNNING",
+                          "Next": "wait_one_secondaccount"
+                      },
+                      {
+                          "Variable": "$.queryexecaccount",
+                          "StringEquals": "QUEUED",
+                          "Next": "wait_3_secondaccount"
+                      }
+                  ],
+                  "Default": "Doneaccount"
+                  },
+            "wait_3_secondaccount": {
+                "Type": "Wait",
+                "Seconds": 3,
+                "Next": "QueryResultaccount"
+                },
+            "wait_one_secondaccount": {
+                "Type": "Wait",
+                "Seconds": 1,
+                "Next": "QueryResultaccount"
+                },
+            "Doneaccount": {
+                                "Type": "Pass",
+                                "End": true
+                    }
+                }
+
+        },
+        { "StartAt": "TransformTableCard",
+        "States": {
+            "TransformTableCard": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+              "FunctionName": "${LambdaAthenaExecution.Arn}",
+              "Payload": {
+                "region": "us-west-2",
+                "database": "c360view_stage",
+                "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                "path": "athena_query_exec/regularoutput",
+                "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                "deletelocation": "origination/card_pqt",
+                "drop": "DROP TABLE c360view_stage.card_pqt",
+                "query": "CREATE TABLE c360view_stage.card_pqt  WITH (        external_location = 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/origination/account_pqt/',        format = 'PARQUET'  )  AS  WITH ranked_messages AS (    SELECT col0 as account_id, col1 as branch_id, col2 as frequency, col3 as creation_date, ROW_NUMBER() OVER ( PARTITION BY col0) AS rn    FROM c360view_raw.account AS a  )  SELECT *, date_parse(creation_date,'%Y-%m-%dT%H:%i:%s.%f') AS cr_date FROM ranked_messages WHERE rn = 2 ORDER BY account_id ;     "
+                               }
+                             },
+                "ResultPath": "$.taskresultaccount",
+                "Next": "QueryResultaccount"
+              },
+            "QueryResultaccount": {
+                "Type": "Task",
+                "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                "InputPath" :"$.taskresultaccount.Payload",
+                "ResultPath":"$.queryexecaccount",
+                "Next": "IsQueryFinishedaccount"
+              },
+            "IsQueryFinishedaccount": {
+              "Type": "Choice",
+                  "Choices": [
+                      {
+                          "Variable": "$.queryexecaccount",
+                          "StringEquals": "RUNNING",
+                          "Next": "wait_one_secondaccount"
+                      },
+                      {
+                          "Variable": "$.queryexecaccount",
+                          "StringEquals": "QUEUED",
+                          "Next": "wait_3_secondaccount"
+                      }
+                  ],
+                  "Default": "Doneaccount"
+                  },
+            "wait_3_secondaccount": {
+                "Type": "Wait",
+                "Seconds": 3,
+                "Next": "QueryResultaccount"
+                },
+            "wait_one_secondaccount": {
+                "Type": "Wait",
+                "Seconds": 1,
+                "Next": "QueryResultaccount"
+                },
+            "Doneaccount": {
+                                "Type": "Pass",
+                                "End": true
+                    }
+                }
+
+        }
+
+
+
+]
+},
+
+
+
+        "TransactionSTG": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+            "FunctionName": "${LambdaAthenaExecution.Arn}",
+            "Payload": {
+              "region": "us-west-2",
+              "database": "c360view_stage",
+              "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+              "path": "athena_query_exec/regularoutput",
+              "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+              "deletelocation": "staging/transaction_stg/",
+              "drop":"SELECT 1;",
+              "query": "SELECT 1;"
+            }
+          },
+              "ResultPath": "$.taskresulttran",
+              "Next": "QueryResulttran",
+              "InputPath": "$.TransformData"
+          },
+          "QueryResulttran": {
+            "Type": "Task",
+            "Resource": "${LambdaCheckAthenaExecution.Arn}",
+            "InputPath" :"$.taskresulttran.Payload",
+            "ResultPath":"$.queryexectran",
+            "Next": "IsQueryFinishedtran"
+          },
+          "IsQueryFinishedtran": {
+                    "Type": "Choice",
+                    "Choices": [
+                        {
+                            "Variable": "$.queryexectran",
+                            "StringEquals": "RUNNING",
+                            "Next": "wait_one_secondtran"
+                        },
+                        {
+                            "Variable": "$.queryexectran",
+                            "StringEquals": "QUEUED",
+                            "Next": "wait_3_secondtran"
+                        }
+                    ],
+                    "Default": "Donetran"
+                },
+            "wait_3_secondtran": {
+                "Type": "Wait",
+                "Seconds": 3,
+                "Next": "QueryResulttran"
+            },
+           "wait_one_secondtran": {
+                "Type": "Wait",
+                "Seconds": 1,
+                "Next": "QueryResulttran"
+            },
+            "Donetran": {
+              "Type": "Pass",
+              "End": true
+            }
+
+}
+}

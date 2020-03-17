@@ -1,0 +1,197 @@
+{
+  "Comment": "Step Functions integration with Athena through Lambda Functions.",
+  "StartAt": "CreateDatabase",
+  "States": {
+    "CreateDatabase": {
+    "Type": "Task",
+    "Resource": "arn:aws:states:::lambda:invoke",
+    "Parameters": {
+    "FunctionName": "${LambdaAthenaExecution.Arn}",
+    "Payload": {
+      "region": "us-west-2",
+      "database": "c360_stage",
+      "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+      "path": "athena_query_exec/regularoutput",
+      "drop":"DROP DATABASE c360_stage",
+      "query": "CREATE DATABASE c360_stage"
+                     }
+  },
+      "ResultPath": "$.taskresult",
+      "Next": "finishcreatedb"
+  },
+  "finishcreatedb": {
+        "Type": "Wait",
+        "Seconds": 1,
+        "Next": "Done"
+  },
+  "Done": {
+            "Type": "Pass",
+            "Next": "GA_unnest_1"
+  },
+
+
+  "GA_unnest_1": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+            "FunctionName": "${LambdaAthenaExecution.Arn}",
+            "Payload": {
+              "region": "us-west-2",
+              "database": "c360_stage",
+              "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+              "path": "ga/ga_sessions_unnest_hits_avro_stg",
+              "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+              "deletelocation": "ga/ga_sessions_unnest_hits_avro_stg",
+              "drop": "DROP TABLE c360_stage.ga_sessions_unnest_hits_avro_stg",
+              "query": "CREATE TABLE c360_stage.ga_sessions_unnest_hits_avro_stg  WITH (    format='AVRO',    external_location='s3://c360view-${AWS::Region}-${AWS::AccountId}-stage/ga/ga_sessions_unnest_hits_avro_stg/',    partitioned_by=ARRAY['day']  ) AS  SELECT      visitorid ,      visitnumber ,      visitid ,      visitstarttime ,      date visitdate,      totals.visits as t_visits,      totals.hits as t_hits,      totals.pageviews as t_pageviews,      totals.timeonsite as t_timeonsite,      totals.bounces as t_bounces,      totals.transactions as t_transactions,      totals.transactionrevenue as t_transactionrevenue,      totals.newvisits as t_newvisits,      totals.screenviews as t_screenviews,      totals.uniquescreenviews as t_uniquescreenviews,      totals.timeonscreen as t_timeonscreen,      totals.totaltransactionrevenue as t_totaltransactionrevenue,      totals.sessionqualitydim as t_sessionqualitydim,      trafficsource.referralpath as trafficsource_referralpath,      trafficsource.campaign as trafficsource_campaign,      trafficsource.source as trafficsource_source,      trafficsource.medium as trafficsource_medium,      trafficsource.keyword as trafficsource_keyword,      trafficsource.adcontent as trafficsource_adcontent,      trafficsource.adwordsclickinfo as trafficsource_adwordsclickinfo,      trafficsource.istruedirect as trafficsource_istruedirect,      trafficsource.campaigncode as trafficsource_campaigncode,      device.browser as device_browser,      device.operatingsystem as device_operatingsystem,      device.ismobile as device_ismobile,      device.devicecategory as device_devicecategory,      geonetwork.subcontinent as geonetwork_subcontinent,      geonetwork.country as geonetwork_country,      geonetwork.region as geonetwork_region,      geonetwork.metro as geonetwork_metro,      geonetwork.city as geonetwork_city,      geonetwork.networkdomain as geonetwork_networkdomain,      customdimensions,      hit.hitnumber as hit_hitnumber,      hit.time as hit_time,      hit.hour as hit_hour,      hit.minute as hit_minute,      hit.issecure as hit_issecure,      hit.isinteraction as hit_isinteraction,      hit.isentrance as hit_isentrance,      hit.isexit as hit_isexit,      hit.referer as hit_referer,      hit.page as hit_page,      hit.transaction as hit_transaction,      hit.item as hit_item,      hit.contentinfo as hit_contentinfo,      hit.appinfo as hit_appinfo,      hit.exceptioninfo as hit_exceptioninfo,      hit.eventinfo as hit_eventinfo,      hit.product as hit_product,      hit.promotion as hit_promotion,      hit.promotionactioninfo as hit_promotionactioninfo,      hit.refund as hit_refund,      hit.ecommerceaction as hit_ecommerceaction,      hit.experiment as hit_experiment,      hit.publisher as hit_publisher,      hit.customvariables as hit_customvariables,      hit.customdimensions as hit_customdimensions,      hit.custommetrics as hit_custommetrics,      hit.type as hit_socialengagementtype,      hit.social as hit_social,      hit.latencytracking as hit_latencytracking,      hit.sourcepropertyinfo as hit_sourcepropertyinfo,      hit.contentgroup as hit_contentgroup,      hit.datasource as hit_datasource,      hit.publisher_infos as hit_publisher_infos,      fullvisitorid ,      userid ,      clientid ,      channelgrouping ,      socialengagementtype,      date day  FROM c360_raw.data  CROSS JOIN UNNEST (hits) AS h (hit);"
+            }
+          },
+              "ResultPath": "$.taskresultunnest1",
+              "Next": "QueryResultunnest1"
+          },
+          "QueryResultunnest1": {
+            "Type": "Task",
+            "Resource": "${LambdaCheckAthenaExecution.Arn}",
+            "InputPath" :"$.taskresultunnest1.Payload",
+            "ResultPath":"$.queryexecunnest1",
+            "Next": "IsQueryFinishedunnest1"
+          },
+          "IsQueryFinishedunnest1": {
+                    "Type": "Choice",
+                    "Choices": [
+                        {
+                            "Variable": "$.queryexecunnest1",
+                            "StringEquals": "RUNNING",
+                            "Next": "wait_one_secondunnest1"
+                        },
+                        {
+                            "Variable": "$.queryexecunnest1",
+                            "StringEquals": "QUEUED",
+                            "Next": "wait_3_secondunnest1"
+                        }
+                    ],
+                    "Default": "GA_unnest_2"
+                },
+            "wait_3_secondunnest1": {
+                "Type": "Wait",
+                "Seconds": 3,
+                "Next": "QueryResultunnest1"
+            },
+           "wait_one_secondunnest1": {
+                "Type": "Wait",
+                "Seconds": 1,
+                "Next": "QueryResultunnest1"
+            },
+    "GA_unnest_2": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:states:::lambda:invoke",
+                      "Parameters": {
+                      "FunctionName": "${LambdaAthenaExecution.Arn}",
+                      "Payload": {
+                        "region": "us-west-2",
+                        "database": "c360_stage",
+                        "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                        "path": "ga/ga_sessions_hits_avro_stg",
+                        "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                        "deletelocation": "ga/ga_sessions_split_avro_stg",
+                        "drop": "DROP TABLE c360_stage.ga_sessions_split_avro_stg",
+                        "query": "CREATE TABLE c360_stage.ga_sessions_split_avro_stg  WITH (   format='AVRO',   external_location='s3://c360view-${AWS::Region}-${AWS::AccountId}-stage'/ga/ga_sessions_split_avro_stg/',   partitioned_by=ARRAY['day'] ) AS SELECT visitorid  , visitnumber  , visitid  , visitstarttime  , visitdate  , t_visits  , t_hits  , t_pageviews  , t_timeonsite  , t_bounces  , t_transactions  , t_transactionrevenue  , t_newvisits  , t_screenviews  , t_uniquescreenviews  , t_timeonscreen  , t_totaltransactionrevenue  , t_sessionqualitydim  , trafficsource_referralpath  , trafficsource_campaign  , trafficsource_source  , trafficsource_medium  , trafficsource_keyword  , trafficsource_adcontent  , trafficsource_adwordsclickinfo.campaignid as adwords_campaignid, trafficsource_adwordsclickinfo.adgroupid as adwords_adgroupid, trafficsource_adwordsclickinfo.creativeid as adwords_creativeid, trafficsource_adwordsclickinfo.criteriaid as adwords_criteriaid, trafficsource_adwordsclickinfo.page as adwords_page, trafficsource_adwordsclickinfo.slot as adwords_slot, trafficsource_adwordsclickinfo.criteriaparameters as adwords_criteriaparameters, trafficsource_adwordsclickinfo.gclid as adwords_gclid, trafficsource_adwordsclickinfo.customerid as adwords_customerid, trafficsource_adwordsclickinfo.adnetworktype as adwords_adnetworktype, trafficsource_adwordsclickinfo.targetingcriteria as adwords_targetingcriteria, trafficsource_adwordsclickinfo.isvideoad as adwords_isvideoad, trafficsource_istruedirect  , trafficsource_campaigncode  , device_browser  , device_operatingsystem  , device_ismobile  , device_devicecategory  , geonetwork_subcontinent  , geonetwork_country  , geonetwork_region  , geonetwork_metro  , geonetwork_city  , geonetwork_networkdomain  , customdimensions, hit_hitnumber  , hit_time  , hit_hour  , hit_minute  , hit_issecure  , hit_isinteraction  , hit_isentrance  , hit_isexit  , hit_referer  , hit_page.pagepath as hitpage_pagepath, hit_page.hostname as hitpage_hostname, hit_page.pagetitle as hitpage_pagetitle, hit_page.searchkeyword as hitpage_searchkeyword, hit_page.searchcategory as hitpage_searchcategory, hit_page.pagepathlevel1 as hitpage_pagepathlevel1, hit_page.pagepathlevel2 as hitpage_pagepathlevel2, hit_page.pagepathlevel3 as hitpage_pagepathlevel3, hit_page.pagepathlevel4 as hitpage_pagepathlevel4, hit_transaction, hit_item.transactionid as hit_item_transactionid, hit_item.productname as hit_item_productname, hit_item.productcategory as hit_item_productcategory, hit_item.productsku as hit_item_productsku, hit_item.itemquantity as hit_item_itemquantity, hit_item.itemrevenue as hit_item_itemrevenue, hit_item.currencycode as hit_item_currencycode, hit_item.localitemrevenue hit_item_localitemrevenue, hit_contentinfo  , hit_appinfo , hit_exceptioninfo, hit_eventinfo, hit_product, hit_promotion, hit_promotionactioninfo  , hit_refund  , hit_ecommerceaction, hit_experiment, hit_publisher  , hit_customvariables, hit_customdimensions, hit_custommetrics, hit_socialengagementtype  , hit_social, hit_latencytracking, hit_sourcepropertyinfo, hit_contentgroup, hit_datasource  , hit_publisher_infos, fullvisitorid  , userid  , clientid  , channelgrouping  , socialengagementtype, day
+                        FROM c360_stage.ga_sessions_unnest_hits_avro_stg;"
+                      }
+                    },
+                        "ResultPath": "$.taskresultunnest2",
+                        "Next": "QueryResultunnest2"
+                    },
+                    "QueryResultunnest2": {
+                      "Type": "Task",
+                      "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                      "InputPath" :"$.taskresultunnest2.Payload",
+                      "ResultPath":"$.queryexecunnest2",
+                      "Next": "IsQueryFinishedunnest2"
+                    },
+                    "IsQueryFinishedunnest2": {
+                              "Type": "Choice",
+                              "Choices": [
+                                  {
+                                      "Variable": "$.queryexecunnest2",
+                                      "StringEquals": "RUNNING",
+                                      "Next": "wait_one_secondunnest2"
+                                  },
+                                  {
+                                      "Variable": "$.queryexecunnest2",
+                                      "StringEquals": "QUEUED",
+                                      "Next": "wait_3_secondunnest2"
+                                  }
+                              ],
+                              "Default": "GA_unnest_3"
+                          },
+                      "wait_3_secondunnest2": {
+                          "Type": "Wait",
+                          "Seconds": 3,
+                          "Next": "QueryResultunnest2"
+                      },
+                     "wait_one_secondunnest2": {
+                          "Type": "Wait",
+                          "Seconds": 1,
+                          "Next": "QueryResultunnest2"
+                      },
+        "GA_unnest_3": {
+                                        "Type": "Task",
+                                        "Resource": "arn:aws:states:::lambda:invoke",
+                                        "Parameters": {
+                                        "FunctionName": "${LambdaAthenaExecution.Arn}",
+                                        "Payload": {
+                                          "region": "us-west-2",
+                                          "database": "c360_stage",
+                                          "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                          "path": "ga/ga_sessions_hits_avro_stg",
+                                          "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                          "deletelocation": "ga/ga_sessions_unnest_hits_avro_stg",
+                                          "drop": "DROP TABLE ga_stg.ga_sessions_unnest_1",
+                                          "query": "CREATE TABLE c360_analytics.ga_sessions_analytics  WITH (    format='PARQUET',    external_location='s3://c360view-us-west-2-806828409366-analytics/ga/ga_sessions_analytics/',    partitioned_by=ARRAY['day']  ) AS  SELECT  visitorid  ,  visitnumber  ,  visitid  ,  visitstarttime  ,  visitdate  ,  t_visits  ,  t_hits  ,  t_pageviews  ,  t_timeonsite  ,  t_bounces  ,  t_transactions  ,  t_transactionrevenue  ,  t_newvisits  ,  t_screenviews  ,  t_uniquescreenviews  ,  t_timeonscreen  ,  t_totaltransactionrevenue  ,  t_sessionqualitydim  ,  trafficsource_referralpath  ,  trafficsource_campaign  ,  trafficsource_source  ,  trafficsource_medium  ,  trafficsource_keyword  ,  trafficsource_adcontent  ,  adwords_campaignid ,  adwords_adgroupid ,  adwords_creativeid ,  adwords_criteriaid ,  adwords_page ,  adwords_slot ,  adwords_criteriaparameters ,  adwords_gclid ,  adwords_customerid ,  adwords_adnetworktype ,  adwords_targetingcriteria ,  adwords_isvideoad ,  trafficsource_istruedirect  ,  trafficsource_campaigncode ,  device_browser  ,  device_operatingsystem  ,  device_ismobile  ,  device_devicecategory  ,  geonetwork_subcontinent  ,  geonetwork_country  ,  geonetwork_region  ,  geonetwork_metro  ,  geonetwork_city  ,  geonetwork_networkdomain  ,  hit_hitnumber  ,  hit_time  ,  hit_hour  ,  hit_minute  ,  hit_issecure ,  hit_isinteraction  ,  hit_isentrance  ,  hit_isexit  ,  hit_referer ,  hitpage_pagepath ,  hitpage_hostname ,  hitpage_pagetitle ,  hitpage_searchkeyword ,  hitpage_searchcategory ,  hitpage_pagepathlevel1 ,  hitpage_pagepathlevel2 ,  hitpage_pagepathlevel3 ,  hitpage_pagepathlevel4 ,  hit_contentinfo ,  hit_appinfo.screenname as hit_appinfo_screenname,  hit_appinfo.landingscreenname as hit_appinfo_landingscreenname,  hit_appinfo.exitscreenname as hit_appinfo_exitscreenname,  hit_appinfo.screendepth as hit_appinfo_screendepth,  hit_promotionactioninfo ,  hit_refund ,  hit_publisher ,  hit_datasource ,  fullvisitorid ,  userid ,  clientid ,  channelgrouping ,
+                                          socialengagementtype , day from c360_stage.ga_sessions_split_avro_stg; "
+                                        }
+                                      },
+                                          "ResultPath": "$.taskresultunnest3",
+                                          "Next": "QueryResultunnest3"
+                                      },
+                                      "QueryResultunnest3": {
+                                        "Type": "Task",
+                                        "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                                        "InputPath" :"$.taskresultunnest3.Payload",
+                                        "ResultPath":"$.queryexecunnest3",
+                                        "Next": "IsQueryFinishedunnest3"
+                                      },
+                                      "IsQueryFinishedunnest3": {
+      "Type": "Choice",
+                                                "Choices": [
+                                                    {
+                                                        "Variable": "$.queryexecunnest3",
+                                                        "StringEquals": "RUNNING",
+                                                        "Next": "wait_one_secondunnest3"
+                                                    },
+                                                    {
+                                                        "Variable": "$.queryexecunnest3",
+                                                        "StringEquals": "QUEUED",
+                                                        "Next": "wait_3_secondunnest3"
+                                                    }
+                                                ],
+                                                "Default": "DoneGA"
+                                            },
+                                        "wait_3_secondunnest3": {
+                                            "Type": "Wait",
+                                            "Seconds": 3,
+                                            "Next": "QueryResultunnest3"
+                                        },
+                                       "wait_one_secondunnest3": {
+                                            "Type": "Wait",
+                                            "Seconds": 1,
+                                            "Next": "QueryResultunnest3"
+                                        },
+                                        "DoneGA": {
+                                                                  "Type": "Pass",
+                                                                  "End": true
+
+                                                              }
+}
+}
