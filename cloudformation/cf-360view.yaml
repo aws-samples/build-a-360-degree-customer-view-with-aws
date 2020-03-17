@@ -1,0 +1,1489 @@
+Parameters:
+  InstanceKeyPairParameter:
+    Description: Amazon EC2 Key Pair source data instance
+    Type: "AWS::EC2::KeyPair::KeyName"
+  VPCID:
+    Description: Amazon VPC for the instances
+    Type: "AWS::EC2::VPC::Id"
+  SubnetAz1:
+    Description: Subnet 1 for lambda function in the same VPC
+    Type: "AWS::EC2::Subnet::Id"
+  SubnetAz2:
+    Description: Subnet 2 for lambda function in the same VPC
+    Type: "AWS::EC2::Subnet::Id"
+  Sourcebucket:
+    Description: Source bucket with library and scripts, do NOT change it unless you copied the source code to your own bucket
+    Type: "String"
+    Default: "hhug-c360view"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Network Configuration"
+        Parameters:
+          - VPCID
+          - SubnetAz1
+          - SubnetAz2
+      -
+        Label:
+          default: "Amazon EC2 Configuration"
+        Parameters:
+          - InstanceKeyPairParameter
+      -
+        Label:
+          default: "Source code"
+        Parameters:
+          - Sourcebucket
+    ParameterLabels:
+      VPCID:
+        default: "VPC to deploy to"
+
+Resources:
+  RDSSource:
+    Type: "AWS::RDS::DBInstance"
+    DeletionPolicy: Snapshot
+    Properties:
+      AllocatedStorage: "200"
+      DBInstanceClass: db.r5.large
+      DBName: sourcemf
+      Engine: postgres
+      PubliclyAccessible: No
+      EngineVersion: "10.6"
+      DBInstanceIdentifier: sourcemf
+      MasterUserPassword: Tim3t0change
+      MasterUsername: sourcemf
+      VPCSecurityGroups:
+        - Ref: RDSSourceSecurityGroup
+      Port: 5432
+      Tags:
+        -
+          Key: Name
+          Value: "Source PostgreSQL Database"
+  RawDataS3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-raw'
+      VersioningConfiguration:
+        Status: Enabled
+  StageDataS3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-stage'
+      VersioningConfiguration:
+        Status: Enabled
+  AnalyticsDataS3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-analytics'
+      VersioningConfiguration:
+        Status: Enabled
+  c360Ec2Instance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      KeyName:
+        Ref: InstanceKeyPairParameter
+      ImageId: 'ami-00e59dfdb19a6debc'
+      InstanceType: t3.large
+      Tags:
+        - Key: "Name"
+          Value: "c360Instance"
+      NetworkInterfaces:
+        - GroupSet:
+          - Ref: c360viewSecurityGroup
+          - Ref: LambdaInstanceSecurityGroup
+          AssociatePublicIpAddress: 'true'
+          DeviceIndex: '0'
+          DeleteOnTermination: 'true'
+  c360viewSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      GroupName: c360view-c360-Access
+      VpcId:
+        Ref: VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+  InboundRuleAccess:
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        SourceSecurityGroupId:
+          Fn::GetAtt:
+          - c360viewSecurityGroup
+          - GroupId
+        GroupId:
+          Fn::GetAtt:
+          - c360viewSecurityGroup
+          - GroupId
+  RDSSourceSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      GroupName: c360view-RDS-Source
+      VpcId:
+        Ref: VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '5432'
+          ToPort: '5432'
+          SourceSecurityGroupId: !GetAtt LambdaInstanceSecurityGroup.GroupId
+        - IpProtocol: tcp
+          FromPort: '5432'
+          ToPort: '5432'
+          SourceSecurityGroupId: !GetAtt c360viewSecurityGroup.GroupId
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+  LambdaInstanceSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      GroupName: c360view-Lambda-Access
+      VpcId:
+        Ref: VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+  GlueExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Glue-role-c360view
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - glue.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - lakeformation:GetDataAccess
+            - lakeformation:GrantPermissions
+            - athena:*
+            - glue:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - iam:GetRole
+            - iam:PassRole
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - s3:*
+            Resource:
+            - !Join ['', ['arn:aws:s3:::', !Ref 'RawDataS3Bucket', '*']]
+            - !Join ['', ['arn:aws:s3:::', !Ref 'StageDataS3Bucket', '*']]
+            - !Join ['', ['arn:aws:s3:::', !Ref 'AnalyticsDataS3Bucket', '*']]
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: c360-LambdaExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonAthenaFullAccess
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - s3:*
+            - lambda:*
+            - ec2:CreateNetworkInterface
+            - ec2:DescribeNetworkInterfaces
+            - ec2:DeleteNetworkInterface
+            - ec2:DescribeSecurityGroups
+            - ec2:DescribeSubnets
+            - ec2:DescribeVpcs
+            - glue:SearchTables
+            - glue:GetDatabase
+            - glue:GetTables
+            - glue:GetPartitions
+            - lakeformation:GetDataAccess
+            - glue:GetDatabases
+            - glue:GetTable
+            Resource: "*"
+  LambdaIngestionPostgresql:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref Sourcebucket
+        S3Key: "lambda/pg-generator.zip"
+      Description: This lambda simulates transactions to c360 source db
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          RDS_ENDPOINT: !GetAtt RDSSource.Endpoint.Address
+      FunctionName: c360viewIngestionPostgresql
+      Handler: postgresql.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 720
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt LambdaInstanceSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref SubnetAz1
+          - !Ref SubnetAz2
+  LambdaGetGaTables:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref Sourcebucket
+        S3Key: "lambda/getgatables.zip"
+      Description: This lambda simulates GA data
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          BucketName: !Ref RawDataS3Bucket
+          SourceBucket: !Ref Sourcebucket
+          csvDelimiter: ","
+          region: us-west-2
+      FunctionName: c360viewGetGaTables
+      Handler: getgatables.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 360
+  LambdaMFgenAccount:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref Sourcebucket
+        S3Key: "lambda/mf-generator.zip"
+      Description: This lambda simulates account data from mainframe
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          BucketName: !Ref RawDataS3Bucket
+          csvDelimiter: ","
+          region: us-west-2
+      FunctionName: c360viewMFgenAccount
+      Handler: account.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 360
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt LambdaInstanceSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref SubnetAz1
+          - !Ref SubnetAz2
+  LambdaMFgenGBank:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref Sourcebucket
+        S3Key: "lambda/mf-generator.zip"
+      Description: This lambda simulates general banking data from mainframe
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          BucketName: !Ref RawDataS3Bucket
+          csvDelimiter: ","
+          region: us-west-2
+      FunctionName: c360viewMFgenGBank
+      Handler: gbank.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 360
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt LambdaInstanceSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref SubnetAz1
+          - !Ref SubnetAz2
+  LambdaMFgenCard:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref Sourcebucket
+        S3Key: "lambda/mf-generator.zip"
+      Description: This lambda simulates card information extract to files
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          BucketName: !Ref RawDataS3Bucket
+          csvDelimiter: ","
+          region: us-west-2
+      FunctionName: c360viewMFgenCard
+      Handler: card.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 360
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt LambdaInstanceSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref SubnetAz1
+          - !Ref SubnetAz2
+  LambdaCRMApi:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref Sourcebucket
+        S3Key: "lambda/crmapi.zip"
+      Description: This lambda simulates c360 CRM API
+      Role: !GetAtt LambdaExecutionRole.Arn
+      FunctionName: c360viewCRMApi
+      Handler: crmapi.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 360
+  LambdaGetCRMApi:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref Sourcebucket
+        S3Key: "lambda/getapi.zip"
+      Description: This lambda calls c360 CRM API
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          BucketName: !Ref RawDataS3Bucket
+          csvDelimiter: ","
+          region: us-west-2
+      FunctionName: c360viewGetCRMApi
+      Handler: getapi.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 360
+  LambdaAthenaExecution:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import time
+
+          params = {
+          }
+
+          session = boto3.Session()
+          sessiondrop = boto3.Session()
+          s3 = session.resource("s3")
+
+          def athena_query(client, params):
+              response = client.start_query_execution(
+                  QueryString=params["query"],
+                  QueryExecutionContext={
+                      'Database': params['database']
+                  },
+          	      ResultConfiguration={
+                      'OutputLocation': 's3://' + params['bucket'] + '/' + params['path']
+                  }
+              )
+              return response
+
+
+          def lambda_handler(event, context):
+              if 'query' in event:
+                  #print(event)
+                  params['database']=event['database']
+                  params['bucket']=event['bucket']
+                  params['path']=event['path']
+                  params['query']=event['query']
+                  if 'deletebucket' in event:
+                      params['deletebucket']=event['deletebucket']
+                      params['deletelocation']=event['deletelocation']
+                  if 'drop' in event:
+                      params['drop']=event['drop']
+                  params['region']=event['region']
+              if 'drop' in params:
+                  try:
+                      clientdrop = session.client('athena', region_name=params["region"])
+                      response = clientdrop.start_query_execution(
+                          QueryString=params["drop"],
+                          QueryExecutionContext={
+                              'Database': params['database']
+                          },
+                  	ResultConfiguration={
+                              'OutputLocation': 's3://' + params['bucket'] + '/' + params['path']
+                          }
+                      )
+                      time.sleep(2)
+                  except:
+                      print('error on drop tables.')
+              if 'deletebucket' in params:
+                  try:
+                      deletebucket=params['deletebucket']
+                      deletelocation=params['deletelocation']
+                      bucket = s3.Bucket(deletebucket)
+                      bucket.objects.filter(Prefix=deletelocation).delete()
+                  except:
+                      print('there was a problem trying to delete your path')
+              try:
+                  client = session.client('athena', region_name=params["region"])
+                  response=athena_query(client, params)
+                  resp=response
+                  #print(resp)
+                  resposta=response['QueryExecutionId']
+                  print('finished your query: {} against: {} database in region {} the output is in {}/{}'.format(params['query'],params['database'],params['region'],params['bucket'],params['path']))
+                  #print(resposta)
+                  return(resposta)
+              except:
+                  print('there was a problem executing your  query: {} against: {} database in region {} with output to {}/{}'.format(params['query'],params['database'],params['region'],params['bucket'],params['path']))
+      Description: This lambda execute athena queries
+      Role: !GetAtt LambdaExecutionRole.Arn
+      FunctionName: c360viewAthenaExecution
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 360
+  LambdaCheckAthenaExecution:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          client = boto3.client('athena')
+
+          def lambda_handler(event, context):
+              evento=str(event)
+              print('log {} '.format(evento))
+              try:
+                      queryid=evento
+                      print(queryid)
+                      response = client.get_query_execution(
+                          QueryExecutionId=queryid
+                      )
+                      resposta=response['QueryExecution']['Status']['State']
+                      return(resposta)
+              except Exception as e:
+                      print(e)
+                      print('error on get response for query_id {}'.format(event['payload']))
+      Description: This lambda check athena query completion
+      Role: !GetAtt LambdaExecutionRole.Arn
+      FunctionName: c360viewCheckAthenaExecution
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 360
+  LambdaCopyPythonLibraries:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+
+          s3 = boto3.client('s3')
+          s3_resource = boto3.resource('s3')
+
+          region = os.getenv('region')
+          BucketName = os.getenv('BucketName')
+          SourceBucket = os.getenv('SourceBucket')
+
+          def lambda_handler(event, context):
+              #copy aws data wrangler
+              bucketname=SourceBucket
+              keys=['library/awswrangler-0.0.12-glue-none-any.whl',
+              'library/n1_c360_dispositions.py',
+              'library/cust360_etl_mf_trans.py',
+              'data/visitors/ga_visitors.csv',
+              'library/c360_analytics.py',
+              'library/c360dynamodbload.q'
+              ]
+              for key in keys:
+                  copy_source = {
+                      'Bucket': bucketname,
+                      'Key': key
+                              }
+                  bucket = s3_resource.Bucket(BucketName)
+                  objs = list(bucket.objects.filter(Prefix=key))
+                  if len(objs) > 0 and objs[0].key == key:
+                      print("Exists!")
+                  else:
+                      s3_resource.meta.client.copy(copy_source, BucketName, key)
+                      print('copied.')
+              return('ok')
+      Description: This lambda copies artifacts to s3
+      Role: !GetAtt LambdaExecutionRole.Arn
+      FunctionName: c360viewCopyPythonLibraries
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Environment:
+        Variables:
+          BucketName: !Ref StageDataS3Bucket
+          SourceBucket: !Ref Sourcebucket
+          region: us-west-2
+      Runtime: python3.7
+      Timeout: 360
+  ScheduledCopyPythonLibraries:
+              Type: AWS::Events::Rule
+              Properties:
+                Description: ScheduledCopyPythonLibraries
+                ScheduleExpression: rate(5 minutes)
+                State: ENABLED
+                Targets:
+                  -
+                    Arn: !Sub ${LambdaCopyPythonLibraries.Arn}
+                    Id: LambdaCopy
+  LambdaInvokePermPython:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Sub ${LambdaCopyPythonLibraries.Arn}
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !Sub ${ScheduledCopyPythonLibraries.Arn}
+  ScheduledIngestionPostgresql:
+              Type: AWS::Events::Rule
+              Properties:
+                Description: ScheduledRulePostgresql
+                ScheduleExpression: rate(12 hours)
+                State: DISABLED
+                Targets:
+                  -
+                    Arn: !Sub ${LambdaIngestionPostgresql.Arn}
+                    Id: Lambda111
+  LambdaInvokePermPostgresql:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Sub ${LambdaIngestionPostgresql.Arn}
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !Sub ${ScheduledIngestionPostgresql.Arn}
+  ScheduledIngestionAccount:
+              Type: AWS::Events::Rule
+              Properties:
+                Description: ScheduledRuleAccount
+                ScheduleExpression: rate(12 hours)
+                State: DISABLED
+                Targets:
+                  -
+                    Arn: !Sub ${LambdaMFgenAccount.Arn}
+                    Id: LambdaAccount
+  LambdaInvokePermAccount:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Sub ${LambdaMFgenAccount.Arn}
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !Sub ${ScheduledIngestionAccount.Arn}
+  ScheduledIngestionBank:
+              Type: AWS::Events::Rule
+              Properties:
+                Description: ScheduledRuleBank
+                ScheduleExpression: rate(12 hours)
+                State: DISABLED
+                Targets:
+                  -
+                    Arn: !Sub ${LambdaMFgenGBank.Arn}
+                    Id: LambdaBank
+  LambdaInvokePermBank:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Sub ${LambdaMFgenGBank.Arn}
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !Sub ${ScheduledIngestionBank.Arn}
+  ScheduledIngestionGetCRMApi:
+              Type: AWS::Events::Rule
+              Properties:
+                Description: ScheduledRuleCRMApi
+                ScheduleExpression: rate(12 hours)
+                State: DISABLED
+                Targets:
+                  -
+                    Arn: !Sub ${LambdaGetCRMApi.Arn}
+                    Id: LambdaBank
+  LambdaInvokePermCRMApi:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Sub ${LambdaGetCRMApi.Arn}
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !Sub ${ScheduledIngestionGetCRMApi.Arn}
+  ScheduledIngestionCard:
+              Type: AWS::Events::Rule
+              Properties:
+                Description: ScheduledRuleCard
+                ScheduleExpression: rate(12 hours)
+                State: DISABLED
+                Targets:
+                  -
+                    Arn: !Sub ${LambdaMFgenCard.Arn}
+                    Id: LambdaBank
+  LambdaInvokePermCard:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Sub ${LambdaMFgenCard.Arn}
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !Sub ${ScheduledIngestionCard.Arn}
+  ScheduledGetGATables:
+              Type: AWS::Events::Rule
+              Properties:
+                Description: ScheduledRuleCard
+                ScheduleExpression: rate(12 hours)
+                State: DISABLED
+                Targets:
+                  -
+                    Arn: !Sub ${LambdaGetGaTables.Arn}
+                    Id: LambdaGaTables
+  LambdaInvokeGetGATables:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Sub ${LambdaGetGaTables.Arn}
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !Sub ${ScheduledGetGATables.Arn}
+  cluster:
+    Type: AWS::EMR::Cluster
+    Properties:
+      Applications:
+        -
+          Name: Hadoop
+        -
+          Name: Hive
+        -
+          Name: Spark
+      EbsRootVolumeSize: 100
+      Configurations:
+        -
+          Classification: hive-site
+          ConfigurationProperties:
+            hive.metastore.client.factory.class: "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
+        -
+          Classification: spark-hive-site
+          ConfigurationProperties:
+            hive.metastore.client.factory.class: "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
+      Instances:
+        Ec2SubnetId: !Ref SubnetAz1
+        Ec2KeyName:
+          Ref: InstanceKeyPairParameter
+        MasterInstanceGroup:
+          InstanceCount: 1
+          InstanceType: m5.xlarge
+          Market: ON_DEMAND
+          Name: c360master
+        CoreInstanceGroup:
+          InstanceCount: 2
+          InstanceType: m5.xlarge
+          Market: ON_DEMAND
+          Name: c360core
+      Name: c360cluster
+      JobFlowRole: !Ref emrEc2InstanceProfile
+      ServiceRole: !Ref emrRole
+      ReleaseLabel: emr-5.28.0
+      VisibleToAllUsers: true
+  emrRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: elasticmapreduce.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole'
+  emrEc2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: c360view-emrEc2Role
+      AssumeRolePolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role'
+  emrEc2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref emrEc2Role
+  StatesExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: c360vStatesExecutionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "lambda:InvokeFunction"
+                Resource: "*"
+
+  MyStateMachineGA:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      DefinitionString: !Sub |
+            {
+              "Comment": "Step Functions integration with Athena through Lambda Functions.",
+              "StartAt": "CreateDatabase",
+              "States": {
+                "CreateDatabase": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::lambda:invoke",
+                "Parameters": {
+                "FunctionName": "${LambdaAthenaExecution.Arn}",
+                "Payload": {
+                  "region": "us-west-2",
+                  "database": "c360view_stage",
+                  "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                  "path": "athena_query_exec/regularoutput",
+                  "query": "CREATE DATABASE IF NOT EXISTS c360view_stage"
+                                 }
+              },
+                  "ResultPath": "$.taskresult",
+                  "Next": "finishcreatedb"
+              },
+              "finishcreatedb": {
+                    "Type": "Wait",
+                    "Seconds": 1,
+                    "Next": "GA_unnest_1"
+              },
+
+
+
+              "GA_unnest_1": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:states:::lambda:invoke",
+                        "Parameters": {
+                        "FunctionName": "${LambdaAthenaExecution.Arn}",
+                        "Payload": {
+                          "region": "us-west-2",
+                          "database": "c360view_stage",
+                          "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                          "path": "athena_query_exec/regularoutput",
+                          "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                          "deletelocation": "ga/ga_sessions_unnest_hits_avro_stg",
+                          "drop": "DROP TABLE c360view_stage.ga_sessions_unnest_hits_avro_stg",
+                          "query": "CREATE TABLE c360view_stage.ga_sessions_unnest_hits_avro_stg  WITH (    format='AVRO',    external_location='s3://c360view-${AWS::Region}-${AWS::AccountId}-stage/ga/ga_sessions_unnest_hits_avro_stg/',    partitioned_by=ARRAY['day']  ) AS  SELECT      visitorid ,      visitnumber ,      visitid ,      visitstarttime ,      date visitdate,      totals.visits as t_visits,      totals.hits as t_hits,      totals.pageviews as t_pageviews,      totals.timeonsite as t_timeonsite,      totals.bounces as t_bounces,      totals.transactions as t_transactions,      totals.transactionrevenue as t_transactionrevenue,      totals.newvisits as t_newvisits,      totals.screenviews as t_screenviews,      totals.uniquescreenviews as t_uniquescreenviews,      totals.timeonscreen as t_timeonscreen,      totals.totaltransactionrevenue as t_totaltransactionrevenue,      totals.sessionqualitydim as t_sessionqualitydim,      trafficsource.referralpath as trafficsource_referralpath,      trafficsource.campaign as trafficsource_campaign,      trafficsource.source as trafficsource_source,      trafficsource.medium as trafficsource_medium,      trafficsource.keyword as trafficsource_keyword,      trafficsource.adcontent as trafficsource_adcontent,      trafficsource.adwordsclickinfo as trafficsource_adwordsclickinfo,      trafficsource.istruedirect as trafficsource_istruedirect,      trafficsource.campaigncode as trafficsource_campaigncode,      device.browser as device_browser,      device.operatingsystem as device_operatingsystem,      device.ismobile as device_ismobile,      device.devicecategory as device_devicecategory,      geonetwork.subcontinent as geonetwork_subcontinent,      geonetwork.country as geonetwork_country,      geonetwork.region as geonetwork_region,      geonetwork.metro as geonetwork_metro,      geonetwork.city as geonetwork_city,      geonetwork.networkdomain as geonetwork_networkdomain,      customdimensions,      hit.hitnumber as hit_hitnumber,      hit.time as hit_time,      hit.hour as hit_hour,      hit.minute as hit_minute,      hit.issecure as hit_issecure,      hit.isinteraction as hit_isinteraction,      hit.isentrance as hit_isentrance,      hit.isexit as hit_isexit,      hit.referer as hit_referer,      hit.page as hit_page,      hit.transaction as hit_transaction,      hit.item as hit_item,      hit.contentinfo as hit_contentinfo,      hit.appinfo as hit_appinfo,      hit.exceptioninfo as hit_exceptioninfo,      hit.eventinfo as hit_eventinfo,      hit.product as hit_product,      hit.promotion as hit_promotion,      hit.promotionactioninfo as hit_promotionactioninfo,      hit.refund as hit_refund,      hit.ecommerceaction as hit_ecommerceaction,      hit.experiment as hit_experiment,      hit.publisher as hit_publisher,      hit.customvariables as hit_customvariables,      hit.customdimensions as hit_customdimensions,      hit.custommetrics as hit_custommetrics,      hit.type as hit_socialengagementtype,      hit.social as hit_social,      hit.latencytracking as hit_latencytracking,      hit.sourcepropertyinfo as hit_sourcepropertyinfo,      hit.contentgroup as hit_contentgroup,      hit.datasource as hit_datasource,      hit.publisher_infos as hit_publisher_infos,      fullvisitorid ,      userid ,      clientid ,      channelgrouping ,      socialengagementtype,      date day  FROM c360view_raw.data  CROSS JOIN UNNEST (hits) AS h (hit);"
+                        }
+                      },
+                          "ResultPath": "$.taskresultunnest1",
+                          "Next": "QueryResultunnest1"
+                      },
+                      "QueryResultunnest1": {
+                        "Type": "Task",
+                        "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                        "InputPath" :"$.taskresultunnest1.Payload",
+                        "ResultPath":"$.queryexecunnest1",
+                        "Next": "IsQueryFinishedunnest1"
+                      },
+              "IsQueryFinishedunnest1": {
+                    "Type": "Choice",
+                    "Choices": [
+                        {
+                            "Variable": "$.queryexecunnest1",
+                            "StringEquals": "RUNNING",
+                            "Next": "wait_one_secondunnest1"
+                        },
+                        {
+                            "Variable": "$.queryexecunnest1",
+                            "StringEquals": "QUEUED",
+                            "Next": "wait_3_secondunnest1"
+                        }
+                    ],
+                    "Default": "GA_unnest_2"
+                },
+            "wait_3_secondunnest1": {
+                "Type": "Wait",
+                "Seconds": 3,
+                "Next": "QueryResultunnest1"
+            },
+            "wait_one_secondunnest1": {
+                "Type": "Wait",
+                "Seconds": 1,
+                "Next": "QueryResultunnest1"
+            },
+            "GA_unnest_2": {
+                              "Type": "Task",
+                              "Resource": "arn:aws:states:::lambda:invoke",
+                              "Parameters": {
+                              "FunctionName": "${LambdaAthenaExecution.Arn}",
+                              "Payload": {
+                                "region": "us-west-2",
+                                "database": "c360view_stage",
+                                "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                "path": "athena_query_exec/regularoutput",
+                                "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                "deletelocation": "ga/ga_sessions_split_avro_stg",
+                                "drop": "DROP TABLE c360view_stage.ga_sessions_split_avro_stg",
+                                "query": "CREATE TABLE c360view_stage.ga_sessions_split_avro_stg  WITH (    format='AVRO',    external_location='s3://c360view-${AWS::Region}-${AWS::AccountId}-stage/ga/ga_sessions_split_avro_stg/',    partitioned_by=ARRAY['day']  ) AS  SELECT  visitorid  ,  visitnumber  ,  visitid  ,  visitstarttime  ,  visitdate  ,  t_visits  ,  t_hits  ,  t_pageviews  ,  t_timeonsite  ,  t_bounces  ,  t_transactions  ,  t_transactionrevenue  ,  t_newvisits  ,  t_screenviews  ,  t_uniquescreenviews  ,  t_timeonscreen  ,  t_totaltransactionrevenue  ,  t_sessionqualitydim  ,  trafficsource_referralpath  ,  trafficsource_campaign  ,  trafficsource_source  ,  trafficsource_medium  ,  trafficsource_keyword  ,  trafficsource_adcontent  ,  trafficsource_adwordsclickinfo.campaignid as adwords_campaignid,  trafficsource_adwordsclickinfo.adgroupid as adwords_adgroupid,  trafficsource_adwordsclickinfo.creativeid as adwords_creativeid,  trafficsource_adwordsclickinfo.criteriaid as adwords_criteriaid,  trafficsource_adwordsclickinfo.page as adwords_page,  trafficsource_adwordsclickinfo.slot as adwords_slot,  trafficsource_adwordsclickinfo.criteriaparameters as adwords_criteriaparameters,  trafficsource_adwordsclickinfo.gclid as adwords_gclid,  trafficsource_adwordsclickinfo.customerid as adwords_customerid,  trafficsource_adwordsclickinfo.adnetworktype as adwords_adnetworktype,  trafficsource_adwordsclickinfo.targetingcriteria as adwords_targetingcriteria,  trafficsource_adwordsclickinfo.isvideoad as adwords_isvideoad,  trafficsource_istruedirect  ,  trafficsource_campaigncode  ,  device_browser  ,  device_operatingsystem  ,  device_ismobile  ,  device_devicecategory  ,  geonetwork_subcontinent  ,  geonetwork_country  ,  geonetwork_region  ,  geonetwork_metro  ,  geonetwork_city  ,  geonetwork_networkdomain  ,  customdimensions,  hit_hitnumber  ,  hit_time  ,  hit_hour  ,  hit_minute  ,  hit_issecure  ,  hit_isinteraction  ,  hit_isentrance  ,  hit_isexit  ,  hit_referer  ,  hit_page.pagepath as hitpage_pagepath,  hit_page.hostname as hitpage_hostname,  hit_page.pagetitle as hitpage_pagetitle,  hit_page.searchkeyword as hitpage_searchkeyword,  hit_page.searchcategory as hitpage_searchcategory,  hit_page.pagepathlevel1 as hitpage_pagepathlevel1,  hit_page.pagepathlevel2 as hitpage_pagepathlevel2,  hit_page.pagepathlevel3 as hitpage_pagepathlevel3,  hit_page.pagepathlevel4 as hitpage_pagepathlevel4,  hit_transaction,  hit_item.transactionid as hit_item_transactionid,  hit_item.productname as hit_item_productname,  hit_item.productcategory as hit_item_productcategory,  hit_item.productsku as hit_item_productsku,  hit_item.itemquantity as hit_item_itemquantity,  hit_item.itemrevenue as hit_item_itemrevenue,  hit_item.currencycode as hit_item_currencycode,  hit_item.localitemrevenue hit_item_localitemrevenue,  hit_contentinfo  ,  hit_appinfo ,  hit_exceptioninfo,  hit_eventinfo,  hit_product,  hit_promotion,  hit_promotionactioninfo  ,  hit_refund  ,  hit_ecommerceaction,  hit_experiment,  hit_publisher  ,  hit_customvariables,  hit_customdimensions,  hit_custommetrics,  hit_socialengagementtype  ,  hit_social,  hit_latencytracking,  hit_sourcepropertyinfo,  hit_contentgroup,  hit_datasource  ,  hit_publisher_infos,  fullvisitorid  ,  userid  ,  clientid  ,  channelgrouping  ,  socialengagementtype,  day  FROM c360view_stage.ga_sessions_unnest_hits_avro_stg;"
+                              }
+                            },
+                                "ResultPath": "$.taskresultunnest2",
+                                "Next": "QueryResultunnest2"
+                            },
+            "QueryResultunnest2": {
+                              "Type": "Task",
+                              "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                              "InputPath" :"$.taskresultunnest2.Payload",
+                              "ResultPath":"$.queryexecunnest2",
+                              "Next": "IsQueryFinishedunnest2"
+                            },
+            "IsQueryFinishedunnest2": {
+                                      "Type": "Choice",
+                                      "Choices": [
+                                          {
+                                              "Variable": "$.queryexecunnest2",
+                                              "StringEquals": "RUNNING",
+                                              "Next": "wait_one_secondunnest2"
+                                          },
+                                          {
+                                              "Variable": "$.queryexecunnest2",
+                                              "StringEquals": "QUEUED",
+                                              "Next": "wait_3_secondunnest2"
+                                          }
+                                      ],
+                                      "Default": "CreateDatabase2"
+                                  },
+                              "wait_3_secondunnest2": {
+                                  "Type": "Wait",
+                                  "Seconds": 3,
+                                  "Next": "QueryResultunnest2"
+                              },
+                             "wait_one_secondunnest2": {
+                                  "Type": "Wait",
+                                  "Seconds": 1,
+                                  "Next": "QueryResultunnest2"
+                              },
+            "CreateDatabase2": {
+                              "Type": "Task",
+                              "Resource": "arn:aws:states:::lambda:invoke",
+                              "Parameters": {
+                              "FunctionName": "${LambdaAthenaExecution.Arn}",
+                              "Payload": {
+                                "region": "us-west-2",
+                                "database": "c360view_analytics",
+                                "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-analytics",
+                                "path": "athena_query_exec/regularoutput",
+                                "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                "deletelocation": "ga/none/none",
+                                "drop": "SELECT 1;",
+                                "query": "CREATE DATABASE IF NOT EXISTS c360view_analytics"
+                                               }
+                            },
+                                "ResultPath": "$.taskresultdb2",
+                                "Next": "finishcreatedb2"
+                            },
+                            "finishcreatedb2": {
+                                  "Type": "Wait",
+                                  "Seconds": 3,
+                                  "Next": "GA_unnest_3"
+                            },
+            "GA_unnest_3": {
+                              "Type": "Task",
+                              "Resource": "arn:aws:states:::lambda:invoke",
+                              "Parameters": {
+                              "FunctionName": "${LambdaAthenaExecution.Arn}",
+                              "Payload": {
+                                "region": "us-west-2",
+                                "database": "c360view_analytics",
+                                "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-analytics",
+                                "path": "athena_query_exec/regularoutput",
+                                "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-analytics",
+                                "deletelocation": "ga/ga_sessions_analytics",
+                                "drop": "DROP TABLE c360view_analytics.ga_sessions_analytics",
+                                "query": "CREATE TABLE c360view_analytics.ga_sessions_analytics  WITH (    format='PARQUET',    external_location='s3://c360view-${AWS::Region}-${AWS::AccountId}-analytics/ga/ga_sessions_analytics/',    partitioned_by=ARRAY['day']  ) AS  SELECT  v.col1 as client_id, visitorid  ,  visitnumber  ,  visitid  ,  visitstarttime  ,  visitdate  ,  t_visits  ,  t_hits  ,  t_pageviews  ,  t_timeonsite  ,  t_bounces  ,  t_transactions  ,  t_transactionrevenue  ,  t_newvisits  ,  t_screenviews  ,  t_uniquescreenviews  ,  t_timeonscreen  ,  t_totaltransactionrevenue  ,  t_sessionqualitydim  ,  trafficsource_referralpath  ,  trafficsource_campaign  ,  trafficsource_source  ,  trafficsource_medium  ,  trafficsource_keyword  ,  trafficsource_adcontent  ,  adwords_campaignid ,  adwords_adgroupid ,  adwords_creativeid ,  adwords_criteriaid ,  adwords_page ,  adwords_slot ,  adwords_criteriaparameters ,  adwords_gclid ,  adwords_customerid ,  adwords_adnetworktype ,  adwords_targetingcriteria ,  adwords_isvideoad ,  trafficsource_istruedirect  ,  trafficsource_campaigncode ,  device_browser  ,  device_operatingsystem  ,  device_ismobile  ,  device_devicecategory  ,  geonetwork_subcontinent  ,  geonetwork_country  ,  geonetwork_region  ,  geonetwork_metro  ,  geonetwork_city  ,  geonetwork_networkdomain  ,  hit_hitnumber  ,  hit_time  ,  hit_hour  ,  hit_minute  ,  hit_issecure ,  hit_isinteraction  ,  hit_isentrance  ,  hit_isexit  ,  hit_referer ,  hitpage_pagepath ,  hitpage_hostname ,  hitpage_pagetitle ,  hitpage_searchkeyword ,  hitpage_searchcategory ,  replace(replace(hitpage_pagepathlevel1,'+'),'/') as hitpage_pagepathlevel1,  replace(replace(hitpage_pagepathlevel2,'+'),'/') as hitpage_pagepathlevel2 ,  replace(replace(hitpage_pagepathlevel3,'+'),'/') as hitpage_pagepathlevel3 ,  replace(replace(hitpage_pagepathlevel4,'+'),'/') as hitpage_pagepathlevel4 ,  hit_contentinfo ,  hit_appinfo.screenname as hit_appinfo_screenname,  hit_appinfo.landingscreenname as hit_appinfo_landingscreenname,  hit_appinfo.exitscreenname as hit_appinfo_exitscreenname,  hit_appinfo.screendepth as hit_appinfo_screendepth,  hit_promotionactioninfo ,  hit_refund ,  hit_publisher ,  hit_datasource ,  fullvisitorid ,  userid ,  clientid ,  channelgrouping ,  socialengagementtype ,  day  from c360view_stage.ga_sessions_split_avro_stg as ga left outer join c360view_stage.visitors as v on ga.fullvisitorid = cast(v.col0 as VARCHAR);"
+                              }
+                            },
+                                "Next": "Done"
+                            },
+
+            "Done": {
+                        "Type": "Pass",
+                        "End": true
+            }
+
+
+            }
+            }
+      RoleArn: !GetAtt [ StatesExecutionRole, Arn ]
+  MyStateMachineToParquet:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      RoleArn: !GetAtt [ StatesExecutionRole, Arn ]
+      DefinitionString: !Sub |
+                      {
+                        "Comment": "Step Functions integration with Athena through Lambda Functions.",
+                        "StartAt": "CreateDatabase",
+                        "States": {
+                          "CreateDatabase": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:states:::lambda:invoke",
+                          "Parameters": {
+                          "FunctionName": "${LambdaAthenaExecution.Arn}",
+                          "Payload": {
+                            "region": "us-west-2",
+                            "database": "c360view_stage",
+                            "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                            "path": "athena_query_exec/regularoutput",
+                            "drop":"SELECT 1;",
+                            "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                            "deletelocation": "ga/none/none",
+                            "query": "CREATE DATABASE IF NOT EXISTS c360view_stage;"
+
+                                           }
+                                         },
+                            "ResultPath": "$.taskresult",
+                            "Next": "finishcreatedb"
+                          },
+                          "finishcreatedb": {
+                              "Type": "Wait",
+                              "Seconds": 1,
+                              "Next": "Done"
+                            },
+                          "Done": {
+                                  "Type": "Pass",
+                                  "Next": "TransformData"
+                              },
+
+
+
+
+                          "TransformData": {
+                            "Type": "Parallel",
+                            "Next": "TransactionSTG",
+                            "ResultPath": "$.TransformData",
+                            "Branches": [
+                              { "StartAt": "TransformTableCustomer",
+                              "States": {
+                                  "TransformTableCustomer": {
+                                    "Type": "Task",
+                                    "Resource": "arn:aws:states:::lambda:invoke",
+                                    "Parameters": {
+                                    "FunctionName": "${LambdaAthenaExecution.Arn}",
+                                    "Payload": {
+                                      "region": "us-west-2",
+                                      "database": "c360view_stage",
+                                      "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                      "path": "athena_query_exec/regularoutput",
+                                      "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                      "deletelocation": "crm/customer_pqt",
+                                      "drop": "DROP TABLE c360view_stage.customer_pqt",
+                                      "query": "CREATE TABLE c360view_stage.customer_pqt  WITH ( external_location = 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/crm/customer_pqt/', format = 'PARQUET' ) AS  WITH ranked_messages AS       (SELECT c.*,           ROW_NUMBER()          OVER ( PARTITION BY client_id) AS rn      FROM c360view_raw.crm AS c )  SELECT *,           CAST(birth_date AS date) AS b_date  FROM ranked_messages  WHERE rn = 1  ORDER BY  client_id;   "
+                                                     }
+                                                   },
+                                      "ResultPath": "$.taskresultcustomer",
+                                      "Next": "QueryResultcustomer"
+                                    },
+                                  "QueryResultcustomer": {
+                                      "Type": "Task",
+                                      "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                                      "InputPath" :"$.taskresultcustomer.Payload",
+                                      "ResultPath":"$.queryexeccustomer",
+                                      "Next": "IsQueryFinishedcustomer"
+                                    },
+                                  "IsQueryFinishedcustomer": {
+                                    "Type": "Choice",
+                                        "Choices": [
+                                            {
+                                                "Variable": "$.queryexeccustomer",
+                                                "StringEquals": "RUNNING",
+                                                "Next": "wait_one_secondcustomer"
+                                            },
+                                            {
+                                                "Variable": "$.queryexeccustomer",
+                                                "StringEquals": "QUEUED",
+                                                "Next": "wait_3_secondcustomer"
+                                            }
+                                        ],
+                                        "Default": "Donecustomer"
+                                        },
+                                  "wait_3_secondcustomer": {
+                                      "Type": "Wait",
+                                      "Seconds": 3,
+                                      "Next": "QueryResultcustomer"
+                                      },
+                                  "wait_one_secondcustomer": {
+                                      "Type": "Wait",
+                                      "Seconds": 1,
+                                      "Next": "QueryResultcustomer"
+                                      },
+                                  "Donecustomer": {
+                                                  "Type": "Pass",
+                                                  "End": true
+                                      }
+                                      }
+
+                              },
+                              { "StartAt": "TransformTableAccount",
+                              "States": {
+                                  "TransformTableAccount": {
+                                    "Type": "Task",
+                                    "Resource": "arn:aws:states:::lambda:invoke",
+                                    "Parameters": {
+                                    "FunctionName": "${LambdaAthenaExecution.Arn}",
+                                    "Payload": {
+                                      "region": "us-west-2",
+                                      "database": "c360view_stage",
+                                      "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                      "path": "athena_query_exec/regularoutput",
+                                      "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                      "deletelocation": "origination/account_pqt",
+                                      "drop": "DROP TABLE c360view_stage.account_pqt",
+                                      "query": "CREATE TABLE c360view_stage.account_pqt  WITH (        external_location = 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/origination/account_pqt/',        format = 'PARQUET'  )  AS  WITH ranked_messages AS (    SELECT col0 as account_id, col1 as branch_id, col2 as frequency, col3 as creation_date, ROW_NUMBER() OVER ( PARTITION BY col0) AS rn    FROM c360view_raw.account AS a  )  SELECT *, date_parse(creation_date,'%Y-%m-%dT%H:%i:%s.%f') AS cr_date FROM ranked_messages WHERE rn = 1 ORDER BY account_id ;     "
+                                                     }
+                                                   },
+                                      "ResultPath": "$.taskresultaccount",
+                                      "Next": "QueryResultaccount"
+                                    },
+                                  "QueryResultaccount": {
+                                      "Type": "Task",
+                                      "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                                      "InputPath" :"$.taskresultaccount.Payload",
+                                      "ResultPath":"$.queryexecaccount",
+                                      "Next": "IsQueryFinishedaccount"
+                                    },
+                                  "IsQueryFinishedaccount": {
+                                    "Type": "Choice",
+                                        "Choices": [
+                                            {
+                                                "Variable": "$.queryexecaccount",
+                                                "StringEquals": "RUNNING",
+                                                "Next": "wait_one_secondaccount"
+                                            },
+                                            {
+                                                "Variable": "$.queryexecaccount",
+                                                "StringEquals": "QUEUED",
+                                                "Next": "wait_3_secondaccount"
+                                            }
+                                        ],
+                                        "Default": "Doneaccount"
+                                        },
+                                  "wait_3_secondaccount": {
+                                      "Type": "Wait",
+                                      "Seconds": 3,
+                                      "Next": "QueryResultaccount"
+                                      },
+                                  "wait_one_secondaccount": {
+                                      "Type": "Wait",
+                                      "Seconds": 1,
+                                      "Next": "QueryResultaccount"
+                                      },
+                                  "Doneaccount": {
+                                                      "Type": "Pass",
+                                                      "End": true
+                                          }
+                                      }
+
+                              },
+                              { "StartAt": "TransformTableCard",
+                              "States": {
+                                  "TransformTableCard": {
+                                    "Type": "Task",
+                                    "Resource": "arn:aws:states:::lambda:invoke",
+                                    "Parameters": {
+                                    "FunctionName": "${LambdaAthenaExecution.Arn}",
+                                    "Payload": {
+                                      "region": "us-west-2",
+                                      "database": "c360view_stage",
+                                      "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                      "path": "athena_query_exec/regularoutput",
+                                      "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                      "deletelocation": "origination/card_pqt",
+                                      "drop": "DROP TABLE c360view_stage.card_pqt",
+                                      "query": "CREATE TABLE c360view_stage.card_pqt  WITH (        external_location = 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/origination/card_pqt/',        format = 'PARQUET'  )  AS  SELECT rs.card_id, rs.disp_id, rs.type, rs.issued_datetime, date_parse(rs.issued_datetime,'%Y-%m-%dT%H:%i:%s.%f') AS iss_date  FROM (          SELECT col0 as card_id, col1 as disp_id, col2 as type, col3 as issued_datetime, Rank()             over (Partition BY col1 ORDER BY col3 DESC) AS Rank          FROM c360view_raw.card   ) rs WHERE Rank <= 3  order by disp_id;"
+                                                     }
+                                                   },
+                                      "ResultPath": "$.taskresultcard",
+                                      "Next": "QueryResultcard"
+                                    },
+                                  "QueryResultcard": {
+                                      "Type": "Task",
+                                      "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                                      "InputPath" :"$.taskresultcard.Payload",
+                                      "ResultPath":"$.queryexeccard",
+                                      "Next": "IsQueryFinishedcard"
+                                    },
+                                  "IsQueryFinishedcard": {
+                                    "Type": "Choice",
+                                        "Choices": [
+                                            {
+                                                "Variable": "$.queryexeccard",
+                                                "StringEquals": "RUNNING",
+                                                "Next": "wait_one_secondcard"
+                                            },
+                                            {
+                                                "Variable": "$.queryexeccard",
+                                                "StringEquals": "QUEUED",
+                                                "Next": "wait_3_secondcard"
+                                            }
+                                        ],
+                                        "Default": "Donecard"
+                                        },
+                                  "wait_3_secondcard": {
+                                      "Type": "Wait",
+                                      "Seconds": 3,
+                                      "Next": "QueryResultcard"
+                                      },
+                                  "wait_one_secondcard": {
+                                      "Type": "Wait",
+                                      "Seconds": 1,
+                                      "Next": "QueryResultcard"
+                                      },
+                                  "Donecard": {
+                                                  "Type": "Pass",
+                                                  "End": true
+                                      }
+                                      }
+
+                              },
+                              { "StartAt": "TransformTableGbank",
+                              "States": {
+                                  "TransformTableGbank": {
+                                    "Type": "Task",
+                                    "Resource": "arn:aws:states:::lambda:invoke",
+                                    "Parameters": {
+                                    "FunctionName": "${LambdaAthenaExecution.Arn}",
+                                    "Payload": {
+                                      "region": "us-west-2",
+                                      "database": "c360view_stage",
+                                      "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                      "path": "athena_query_exec/regularoutput",
+                                      "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                      "deletelocation": "origination/gbank_pqt",
+                                      "drop": "DROP TABLE c360view_stage.gbank_pqt",
+                                      "query": "CREATE TABLE c360view_stage.gbank_pqt  WITH (        external_location = 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/origination/gbank_pqt/',        format = 'PARQUET'  )  AS    SELECT col0 as disp_id, col1 as account_id, col2 as client_id, col3 as type FROM c360view_raw.gbank;"
+                                                     }
+                                                   },
+                                      "ResultPath": "$.taskresultgbank",
+                                      "Next": "QueryResultgbank"
+                                    },
+                                  "QueryResultgbank": {
+                                      "Type": "Task",
+                                      "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                                      "InputPath" :"$.taskresultgbank.Payload",
+                                      "ResultPath":"$.queryexecgbank",
+                                      "Next": "IsQueryFinishedgbank"
+                                    },
+                                  "IsQueryFinishedgbank": {
+                                    "Type": "Choice",
+                                        "Choices": [
+                                            {
+                                                "Variable": "$.queryexecgbank",
+                                                "StringEquals": "RUNNING",
+                                                "Next": "wait_one_secondgbank"
+                                            },
+                                            {
+                                                "Variable": "$.queryexecgbank",
+                                                "StringEquals": "QUEUED",
+                                                "Next": "wait_3_secondgbank"
+                                            }
+                                        ],
+                                        "Default": "Donegbank"
+                                        },
+                                  "wait_3_secondgbank": {
+                                      "Type": "Wait",
+                                      "Seconds": 3,
+                                      "Next": "QueryResultgbank"
+                                      },
+                                  "wait_one_secondgbank": {
+                                      "Type": "Wait",
+                                      "Seconds": 1,
+                                      "Next": "QueryResultgbank"
+                                      },
+                                  "Donegbank": {
+                                                  "Type": "Pass",
+                                                  "End": true
+                                      }
+                                      }
+
+                              }
+
+
+                      ]
+                      },
+
+
+
+                              "TransactionSTG": {
+                                  "Type": "Task",
+                                  "Resource": "arn:aws:states:::lambda:invoke",
+                                  "Parameters": {
+                                  "FunctionName": "${LambdaAthenaExecution.Arn}",
+                                  "Payload": {
+                                    "region": "us-west-2",
+                                    "database": "c360view_stage",
+                                    "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                    "path": "athena_query_exec/regularoutput",
+                                    "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                    "deletelocation": "staging/transaction_stg/",
+                                    "drop":"SELECT 1;",
+                                    "query": "SELECT 1;"
+                                  }
+                                },
+                                    "ResultPath": "$.taskresulttran",
+                                    "Next": "QueryResulttran",
+                                    "InputPath": "$.TransformData"
+                                },
+                                "QueryResulttran": {
+                                  "Type": "Task",
+                                  "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                                  "InputPath" :"$.taskresulttran.Payload",
+                                  "ResultPath":"$.queryexectran",
+                                  "Next": "IsQueryFinishedtran"
+                                },
+                                "IsQueryFinishedtran": {
+                                          "Type": "Choice",
+                                          "Choices": [
+                                              {
+                                                  "Variable": "$.queryexectran",
+                                                  "StringEquals": "RUNNING",
+                                                  "Next": "wait_one_secondtran"
+                                              },
+                                              {
+                                                  "Variable": "$.queryexectran",
+                                                  "StringEquals": "QUEUED",
+                                                  "Next": "wait_3_secondtran"
+                                              }
+                                          ],
+                                          "Default": "Donetran"
+                                      },
+                                  "wait_3_secondtran": {
+                                      "Type": "Wait",
+                                      "Seconds": 3,
+                                      "Next": "QueryResulttran"
+                                  },
+                                 "wait_one_secondtran": {
+                                      "Type": "Wait",
+                                      "Seconds": 1,
+                                      "Next": "QueryResulttran"
+                                  },
+                                  "Donetran": {
+                                    "Type": "Pass",
+                                    "End": true
+                                  }
+
+                      }
+                      }
+  MyStateMachineRelationalDB:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      RoleArn: !GetAtt [ StatesExecutionRole, Arn ]
+      DefinitionString: !Sub |
+                      {
+                        "Comment": "Step Functions integration with Athena through Lambda Functions.",
+                        "StartAt": "RelationalDB",
+                        "States": {
+                          "RelationalDB": {
+                              "Type": "Task",
+                              "Resource": "arn:aws:states:::lambda:invoke",
+                              "Parameters": {
+                              "FunctionName": "${LambdaAthenaExecution.Arn}",
+                              "Payload": {
+                                "region": "us-west-2",
+                                "database": "c360view_stage",
+                                "bucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                "path": "athena_query_exec/regularoutput",
+                                "deletebucket": "c360view-${AWS::Region}-${AWS::AccountId}-stage",
+                                "deletelocation": "db2/mf_transactions_pqt",
+                                "drop":"DROP TABLE c360view_stage.mf_transactions_pqt;",
+                                "query": "CREATE TABLE c360view_stage.mf_transactions_pqt  WITH (  external_location = 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/db2/mf_transactions_pqt/',  format = 'PARQUET'  )  AS  SELECT trans_id,          type,          operation,          amount,          balance,          replace(date, '\"','') as date,          date_parse(replace(date, '\"',''),'%Y-%m-%d %H:%i:%s.%f') AS tr_date, account_id  FROM c360view_raw.sourcemf_sourcemf_public_transactions;"
+                              }
+                            },
+                                "ResultPath": "$.taskresulttran",
+                                "Next": "QueryResulttran"
+                            },
+                            "QueryResulttran": {
+                              "Type": "Task",
+                              "Resource": "${LambdaCheckAthenaExecution.Arn}",
+                              "InputPath" :"$.taskresulttran.Payload",
+                              "ResultPath":"$.queryexectran",
+                              "Next": "IsQueryFinishedtran"
+                            },
+                            "IsQueryFinishedtran": {
+                                      "Type": "Choice",
+                                      "Choices": [
+                                          {
+                                              "Variable": "$.queryexectran",
+                                              "StringEquals": "RUNNING",
+                                              "Next": "wait_one_secondtran"
+                                          },
+                                          {
+                                              "Variable": "$.queryexectran",
+                                              "StringEquals": "QUEUED",
+                                              "Next": "wait_3_secondtran"
+                                          }
+                                      ],
+                                      "Default": "Donetran"
+                                  },
+                              "wait_3_secondtran": {
+                                  "Type": "Wait",
+                                  "Seconds": 3,
+                                  "Next": "QueryResulttran"
+                              },
+                             "wait_one_secondtran": {
+                                  "Type": "Wait",
+                                  "Seconds": 1,
+                                  "Next": "QueryResulttran"
+                              },
+                              "Donetran": {
+                                "Type": "Pass",
+                                "End": true
+                              }
+
+                      }
+                      }
+  Jobn1c360dispositions:
+    Type: AWS::Glue::Job
+    Properties:
+      Command:
+        Name: pythonshell
+        ScriptLocation: !Sub 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/library/n1_c360_dispositions.py'
+        PythonVersion: 3
+      DefaultArguments:
+        "--BucketName": !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-stage'
+        "--extra-py-files":  !Sub 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/library/awswrangler-0.0.12-glue-none-any.whl'
+      ExecutionProperty:
+        MaxConcurrentRuns: 2
+      MaxRetries: 0
+      MaxCapacity: 1
+      Name: n1_c360_dispositions
+      Role: !Ref GlueExecutionRole
+  Jobcust360etlmftrans:
+    Type: AWS::Glue::Job
+    Properties:
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/library/cust360_etl_mf_trans.py'
+        PythonVersion: 3
+      DefaultArguments:
+        "--BucketName": !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-stage'
+        "--extra-py-files":  !Sub 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/library/awswrangler-0.0.12-glue-none-any.whl'
+      ExecutionProperty:
+        MaxConcurrentRuns: 2
+      MaxRetries: 0
+      MaxCapacity: 1
+      Name: Jobcust360etlmftrans
+      Role: !Ref GlueExecutionRole
+  Crawler360jobtables3m:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: "Crawler360jobtables3m"
+      Role: !GetAtt GlueExecutionRole.Arn
+      DatabaseName: "c360view_stage"
+      Targets:
+        S3Targets:
+          - Path: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-stage/c360_spark/n1_c360_trans_stats_type_l3m/'
+      SchemaChangePolicy:
+        UpdateBehavior: "UPDATE_IN_DATABASE"
+        DeleteBehavior: "LOG"
+  Crawler360jobtables6m:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: "Crawler360jobtables6m"
+      Role: !GetAtt GlueExecutionRole.Arn
+      DatabaseName: "c360view_stage"
+      Targets:
+        S3Targets:
+          - Path: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-stage/c360_spark/n1_c360_trans_stats_type_l6m/'
+      SchemaChangePolicy:
+        UpdateBehavior: "UPDATE_IN_DATABASE"
+        DeleteBehavior: "LOG"
+  Crawlerc360rawdata:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: "Crawlerc360rawdata"
+      Role: !GetAtt GlueExecutionRole.Arn
+      DatabaseName: "c360view_raw"
+      Targets:
+        S3Targets:
+          - Path: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-raw'
+      SchemaChangePolicy:
+        UpdateBehavior: "UPDATE_IN_DATABASE"
+        DeleteBehavior: "LOG"
+  Crawlerc360visitorid:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: "Crawlerc360visitorid"
+      Role: !GetAtt GlueExecutionRole.Arn
+      DatabaseName: "c360view_stage"
+      Targets:
+        S3Targets:
+          - Path: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-stage/data/visitors/'
+      SchemaChangePolicy:
+        UpdateBehavior: "UPDATE_IN_DATABASE"
+        DeleteBehavior: "LOG"
+  DDBc360view:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "pk"
+          AttributeType: "N"
+        -
+          AttributeName: "sk"
+          AttributeType: "S"
+      TableName: DDBc360view
+      KeySchema:
+        -
+          AttributeName: "pk"
+          KeyType: "HASH"
+        -
+          AttributeName: "sk"
+          KeyType: "RANGE"
+      GlobalSecondaryIndexes:
+        -
+          IndexName: "GSI1"
+          KeySchema:
+            -
+              AttributeName: "sk"
+              KeyType: "HASH"
+          Projection:
+            ProjectionType: "ALL"
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
