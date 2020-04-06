@@ -514,11 +514,11 @@ Resources:
               #copy aws data wrangler
               bucketname=SourceBucket
               keys=['library/awswrangler-0.0.12-glue-none-any.whl',
-              'library/n1_c360_dispositions.py',
-              'library/cust360_etl_mf_trans.py',
+              'gluejobs/n1_c360_dispositions.py',
+              'gluejobs/cust360_etl_mf_trans.py',
               'data/visitors/ga_visitors.csv',
-              'library/c360_analytics.py',
-              'library/c360dynamodbload.q'
+              'dynamodb_emr/c360_analytics.py',
+              'dynamodb_emr/c360dynamodbload.q'
               ]
               for key in keys:
                   copy_source = {
