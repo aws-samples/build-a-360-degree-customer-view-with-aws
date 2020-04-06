@@ -1378,12 +1378,11 @@ Resources:
     Type: AWS::Glue::Job
     Properties:
       Command:
-        Name: pythonshell
+        Name: glueetl
         ScriptLocation: !Sub 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/library/n1_c360_dispositions.py'
         PythonVersion: 3
       DefaultArguments:
         "--BucketName": !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-stage'
-        "--extra-py-files":  !Sub 's3://c360view-${AWS::Region}-${AWS::AccountId}-stage/library/awswrangler-0.0.12-glue-none-any.whl'
       ExecutionProperty:
         MaxConcurrentRuns: 2
       MaxRetries: 0
