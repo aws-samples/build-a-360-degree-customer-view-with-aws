@@ -57,6 +57,12 @@ It will probably be in second pagination of AWS services.
 **Step 6:** Create endpoint.
 
 
+## Deploy [CloudFormation](cloudformation/README.md)
+
+
+
+
+
 ## License
 
 This library is licensed under the MIT-0 License. See the LICENSE file.
