@@ -6,7 +6,14 @@ This implementation can be used to refine customer personas, their behavior and 
 
 The common pain point is that information about customer is spread across several systems inside your company, from customer interaction with your call center records to events related to customer search behavior, you have several different data that are difficult to correlate if you don’t have a Data Lake strategy.
 
-This blog post demonstrated how to bring data from different data systems as a set of customer dimensions and build a 360-degree customer view as a baseline for all customer analytics initiatives.
+This git demonstrated how to bring data from different data systems as a set of customer dimensions and build a 360-degree customer view as a baseline for all customer analytics initiatives.
+
+## Dimensions for a 360-degree customer view
+
+Usually we look at our customers from a perspective, such as Loyalty perspective, looking at metrics like: years of history, frequency of interaction, or a Demographic perspective: stage of life, income, stage of life. We call them dimensions, and we will combine several dimensions about your customer to give you more visibility of several perspectives at the same time.
+
+In this blog we will explore a hypothetic financial services company, as there are common dimensions for this industry and some dimensions that are also valid for any service industry, like marketing and communications, customer history or demographic dimension.
+
 
 
 
