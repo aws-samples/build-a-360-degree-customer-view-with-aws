@@ -76,6 +76,14 @@ To consume the data, we have Amazon Athena query engine console and API, and Ama
 
 ## Solution deployment with AWS CloudFormation - AWS Account required
 
+Perform the following steps before you launch the CloudFormation template.
+### Create key pair in Oregon
+
+**Step 1:** Login in AWS console with your account login properties.
+**Step 2:** Select Oregon region (us-west-2). At the top right side of your console check if you are doing in the right Region.
+
+![Deploy 1](images/pic-d-1.png)
+
 
 
 
