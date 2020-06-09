@@ -1,8 +1,6 @@
-## My Project
+## Build a 360-degree customer view in AWS using a powerful set of analytics tools
 
-TODO: Fill this README out!
 
-Be sure to:
 
 * Change the title in this README
 * Edit your repository description on GitHub
@@ -10,4 +8,3 @@ Be sure to:
 ## License
 
 This library is licensed under the MIT-0 License. See the LICENSE file.
-
