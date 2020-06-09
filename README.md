@@ -29,8 +29,29 @@ To deliver summarized and at the same time comprehensive data about customer to 
 
 ![Data Sources and Layers](images/pic2.png)
 
+In a Data Lake we have some important tiers for the data and going from the bottom up, starting with data and ending up with strategic information for business decision:
+
+-	The RAW layer is the first storage area for data coming from several different sources and formats, usually the data in this area are in plain text (CSV) or JSON and in some cases, they are compressed files such as Gzip.
+-	STAGE is the storage area for the data we are handling, transforming and cleaning. In this layer we have control of the data format so we can storage the output in columnar formats such as Apache Parquet or Apache ORC compressed with Snappy that will have a better performance to join and aggregate data by columns or Apache Avro container files that has a JSON schema representation for each file.
+-	Finally, we deliver information to the ANALYTICS layer for the business areas ready for consumption and with good performance. To achieve this, we partition the data and use columnar formats to make it easy and fast to query data, filter it or aggregate it.
+-	In parallel, the SANBOX area is for the Data Scientists to interact with data from STAGE or even ANALYTICS data to build new data models, discover new correlations and build machine learning models.
+
+So, the second challenge that comes is to have powerful analytics tools that can enrich, filter, clean and aggregate this data, analyze them and generate information. Also, the tools need to fit each of the needs for example Data Engineer transformation, from small to large volumes, a Data Scientist complex algorithm and a Business user query engine. There is no ‘silver bullet’ in the market, the best product for one step or role is not the best for another, and AWS provides a broad variety of these tools.
+
+## Data Lake in AWS
+
+Data lake in AWS has a key storage component Amazon S3 that stores, secure and maintain data in a very cost-effective way and provides high throughput with the AWS ingestion and the analytics tools.
+
+![Data Lake](images/pic3.png)
 
 
+
+To ingest data into our data lake we can use AWS Snowball to send large amount of files, AWS Direct Connect connection for high speed network data transfer, and services like AWS DataSync, AWS Data Migration Service and AWS Transfer for SFTP for different needs to ingest data in our AWS data lake. Also Amazon Kinesis Data Streams and Amazon Kinesis Data Firehose to ingest streaming data.
+In this git we are using AWS Lake Formation blueprints and  AWS Lambda functions to extract data actively from some sources and APIs, and also Amazon S3 direct put files from legacy systems.
+
+To transform data we can use serverless fully managed AWS Glue jobs, a powerful and flexible Hadoop and Spark ecosystem Amazon EMR, and small jobs and streaming processing with AWS Lambda functions orchestrated by AWS Step Functions, and executed with lake Amazon Athena query engine, that also supports create new tables and insert data, we will explore uses cases for each of them in this git.
+
+Amazon DynamoDB can be used to deliver data in a very low latency and scalable way, we are going to delivery consumable information about our customer for business users.
 
 
 
