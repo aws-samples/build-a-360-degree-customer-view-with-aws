@@ -74,7 +74,7 @@ For processing we are counting with Step Functions orchestrating AWS Lambda usin
 To consume the data, we have Amazon Athena query engine console and API, and Amazon DynamoDB console and API.
 
 
-[Deployment](deployment/README.md)
+## To deploy the example in your account go to [Deployment](deployment/README.md)
 
 
 
