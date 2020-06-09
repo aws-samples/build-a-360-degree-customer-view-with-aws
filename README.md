@@ -14,6 +14,7 @@ Usually we look at our customers from a perspective, such as Loyalty perspective
 
 In this blog we will explore a hypothetic financial services company, as there are common dimensions for this industry and some dimensions that are also valid for any service industry, like marketing and communications, customer history or demographic dimension.
 
+![360-degree Customer View](images/pic1.png)
 
 
 
