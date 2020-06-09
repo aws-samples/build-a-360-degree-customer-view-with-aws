@@ -1,5 +1,7 @@
 ## Solution deployment with AWS CloudFormation - AWS Account required
 
+## Required setup
+
 Perform the following steps before you launch the CloudFormation template.
 ### Create key pair in Oregon
 
@@ -50,7 +52,9 @@ It will probably be in second pagination of AWS services.
 
 **Step 5:** Keep the Full access policy and don’t change the policy.
 
+![Deployvpc 5](images/pic-d-vpc-5.png)
 
+**Step 6:** Create endpoint.
 
 
 ## License
