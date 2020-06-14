@@ -83,12 +83,27 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
   c360Ec2Instance:
+    DependsOn: c360EC2InstanceProfile
     Type: 'AWS::EC2::Instance'
     Properties:
       KeyName:
         Ref: InstanceKeyPairParameter
       ImageId: 'ami-00e59dfdb19a6debc'
       InstanceType: t3.large
+      IamInstanceProfile: 'EC2InstanceProfile-c360view'
+      UserData:
+        Fn::Base64:
+          !Sub |
+              #!/bin/bash -ex
+              sudo yum install gcc -y
+              sudo yum install python3.7 -y
+              sudo yum install postgresql-devel -y
+              mkdir lambda-pg-generator
+              cd lambda-pg-generator
+              pip3 install psycopg2-binary -t .
+              wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/lambda/lambda-pg-generator/postgresql.py
+              zip -r ../newlambda.zip postgresql.py psycopg2*
+              aws lambda update-function-code --function-name c360viewIngestionPostgresql --zip-file fileb://../newlambda.zip --region us-west-2
       Tags:
         - Key: "Name"
           Value: "c360Instance"
@@ -157,6 +172,46 @@ Resources:
           FromPort: '22'
           ToPort: '22'
           CidrIp: 0.0.0.0/0
+  c360EC2InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      InstanceProfileName: 'EC2InstanceProfile-c360view'
+      Roles:
+        - !Ref c360EC2ExecutionRole
+  c360EC2ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EC2rolec360view
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - lambda:ListFunctions
+            - lambda:ListEventSourceMappings
+            - lambda:ListLayerVersions
+            - lambda:ListLayers
+            - lambda:GetAccountSettings
+            - lambda:CreateEventSourceMapping
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - lambda:*
+            Resource:
+            - !Sub 'arn:aws:lambda:us-west-2:${AWS::AccountId}:function:c360viewIngestionPostgresql'
   GlueExecutionRole:
     Type: AWS::IAM::Role
     Properties:
