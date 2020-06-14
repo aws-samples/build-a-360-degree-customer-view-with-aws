@@ -62,8 +62,6 @@ Refresh your browser to check for completion.
 ![bp 0](pic-tr08.png)
 
 
-**Step 4:**
-
 
 ## [Perform transformation with source raw tables and to have it flatten and transformed to parquet files.](../transformation/README.md)
 
