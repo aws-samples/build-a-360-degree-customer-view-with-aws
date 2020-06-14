@@ -1,7 +1,7 @@
 ## Deploy CloudFormation template to create basic infrastructure
 
 
-**Step 1:** [Download Cloudformation template - cf-360view.yaml - Right click and Save link as file. ](../../cloudformation/cf-360view.yaml)
+**Step 1:** Download Cloudformation template [cf-360view.yaml : Right click here and Save Link as File.](../../cloudformation/cf-360view.yaml)
 
 ![cf 0](pic-cf0.png)
 
