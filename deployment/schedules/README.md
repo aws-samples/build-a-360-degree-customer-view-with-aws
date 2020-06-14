@@ -1,4 +1,4 @@
-## Deploy CloudFormation template to create basic infrastructure
+## Activate the schedulers to generate data from different sources
 
 
 **Step 1:** Go to [CloudWatch Events -> Rules](https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#cw:dashboard=Home), and enable each of the c360v-Schedule.
@@ -6,12 +6,50 @@
 ![cw 0](pic-cw0.png)
 
 
-**Step 2:** Open the AWS [Cloudformation stack creation](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/template) And Upload a template file.
+**Step 2:** Check the item, go to Actions and Enable.
 
-![cf 1](pic-cf01.png)
+![cf 1](pic-cw01.png)
 
 
-**Step 3:** Choose Next and fill up the parameters:
+**Step 3:** Repeat step 2, this until all are green.
+
+![cf 2](pic-cw02.png)
+
+
+## Verify the data created by the Lambda functions.
+
+Amazon S3 is the central service of Data Lake architecture in AWS. In our solution we are using Lambda functions to pick external data such as BigQuery from GA (Google Analytics)  source: https://www.kaggle.com/bigquery/google-analytics-sample tables and also generate several other synthetic data for other data sets.
+The original AWS Lambda code used to extract BigQuery data is the following.
+
+```python
+python
+from google.cloud import bigquery
+import json
+import boto3
+import os
+s3 = boto3.resource('s3')
+client = bigquery.Client.from_service_account_json(
+    './bqfile.json')
+datasets = list(client.list_datasets())
+project = client.project
+table = os.environ['table']
+PATH_TO = os.environ['path_to']
+BUCKET_NAME = os.environ['bucket']
+QUERY = (
+    'SELECT '
+    ' TO_JSON_STRING(g) jsonfield '
+    ' FROM ` bigquery-public-data:google_analytics_sample..ga_sessions_'+table+'` g '
+)
+query_job = client.query(QUERY)  # API request
+
+def lambda_handler(event, context):
+    tofile=''
+    rows = query_job.result()
+    for row in rows:
+        newfield=row.jsonfield+'\n'
+        tofile += newfield
+    s3.Object(BUCKET_NAME, PATH_TO+'/ga_sessions_' + table+'/ga_sessions_'+table+'.json').put(Body=tofile)
+```
 
 * **Stack name:** c360view
 *	**Network Configuration:**
