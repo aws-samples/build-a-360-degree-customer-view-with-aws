@@ -1,8 +1,6 @@
 ## Deploy CloudFormation template to create basic infrastructure
 
-**Step 1:** Download Cloudformation template
-<a id="raw-url" href="<a id="raw-url" href="https://raw.githubusercontent.com/github-username/project/master/filename">Download CF Template</a>
-">Download CF Template</a>
+**Step 1:** [Download Cloudformation template](https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/cloudformation/cf-360view.yaml)
 
 **Step 1:** Open the AWS [Cloudformation template (righ click here and Open **new tab**)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/template)
 
