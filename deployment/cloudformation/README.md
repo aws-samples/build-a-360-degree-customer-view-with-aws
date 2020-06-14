@@ -62,9 +62,10 @@ The template has created the following resources to optimize your time.
 Check the status of each resource, and order by resource status.
 
 
+If the resource Type “AWS::RDS::DBInstance” and “AWS::EMR::Cluster” are the only with status CREATE_IN_PROGRESS, and all the others are CREATE_COMPLETE you can continue the execution.
 
 
-
+## Now [Activate schedules](../schedules/README.md)
 
 
 ## License
