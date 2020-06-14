@@ -29,38 +29,35 @@
 ![cf 3](pic-bp03.png)
 
 
+**Step 4:** Edit your connection to Add a Security group to your connection:
+
+![cf 4](pic-bp04.png)
+
+**Step 5:** Check the c360view-c360-Access and c360view-RDS-Source security group:
+* **Group name:** c360view-c360-Access and c360view-RDS-Source
+* **Password:** Tim3t0change (re-enter it)
+
+![cf 5](pic-bp05.png)
+
+**Step 6:** Test your connection:
+*	**IAM role:** Glue-role-c360view
+
+![cf 6](pic-bp06.png)
 
 
+**Step 7:** You will see sourcemf connected successfully:
 
-**Step 1:** Go to [Amazon S3](https://s3.console.aws.amazon.com/s3/home?region=us-west-2) console to check the data in your raw bucket.
-Go to Amazon S3 console to check the data in your raw bucket.
+![cf 7](pic-bp07.png)
 
-Search for c360view buckets.
+If you receive the following error:
 
-![sw 0](pic-sw00.png)
+![cf 8](pic-bp08.png)
 
+Edit your connection again and change the Subnet to another one.
 
-**Step 2:** Click on the c360view-us-west-2-<YOUR_ACCOUNT_ID>-raw bucket.
-Refresh the bucket while the lambda codes are running.
+![cf 9](pic-bp09.png)
 
-![sw 1](pic-sw01.png)
-
-
-**Step 3:** Enter inside each folder to check the files created inside.
-
-![sw 2](pic-sw02.png)
-
-Account data, at account folder.
-
-![sw 3](pic-sw03.png)
-
-GA sessions data, at data/GA/ga_session_20YYMMDD folders.
-
-
-**Step 4:**
-
-**Step 5:**
-
+Then test the connection with the new chosen subnet until it works.
 
 ## Setup [Lake Formation](../lakeformation/README.md)
 
