@@ -1,5 +1,11 @@
 ## Deploy CloudFormation template to create basic infrastructure
 
+
+
+{% raw %}
+<button onclick="window.open('../../cloudformation/cf-360view.yaml')">Download</button>
+{% endraw %}
+
 **Step 1:** [Download Cloudformation template](https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/cloudformation/cf-360view.yaml)
 
 
