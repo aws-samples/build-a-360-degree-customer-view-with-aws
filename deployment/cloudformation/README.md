@@ -6,14 +6,14 @@
 ![cf 0](pic-cf0.png)
 
 
-**Step 1:** Open the AWS [Cloudformation stack creation)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/template)
+**Step 2:** Open the AWS [Cloudformation stack creation)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/template)
 
 
 
 ![cf 1](pic-cf1.png)
 
 
-**Step 2:** Choose Next and fill up the parameters:
+**Step 3:** Choose Next and fill up the parameters:
 
 * **Stack name:** c360view
 *	**Network Configuration:**
@@ -25,14 +25,14 @@
 ![cf 2](pic-cf2.png)
 
 
-**Step 3:** Choose Next for the next window.
+**Step 4:** Choose Next for the next window.
 
 
-**Step 4:** Check the “I acknowledge that AWS CloudFormation might create IAM resources.”  and Create stack.
+**Step 5:** Check the “I acknowledge that AWS CloudFormation might create IAM resources.”  and Create stack.
 
 ![cf 3](pic-cf3.png)
 
-**Step 5:** Go to Resources tab to look for completion of resources.
+**Step 6:** Go to Resources tab to look for completion of resources.
 
 ![cf 4](pic-cf4.png)
 
@@ -64,7 +64,6 @@ The template has created the following resources to optimize your time.
 Check the status of each resource, and order by resource status.
 
 
-## Deploy [CloudFormation](cloudformation/README.md)
 
 
 
