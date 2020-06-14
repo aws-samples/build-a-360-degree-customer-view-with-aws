@@ -37,20 +37,17 @@ Go to [Lake Formation Workflows Blueprints](https://us-west-2.console.aws.amazon
 
 
 
-**Step 4:**
+**Step 4:** After created it **Start it now**
 
 ![bp 1](pic-wf05.png)
 
-**Step 5:**
+It will take some minutes for you to see the workflow importing data.
 
-![bp 1](pic-wf06.png)
-
-
-
-![bp 1](pic-wf07.png)
+You will come back later to this workflow, while it starts let’s perform some data processing.
 
 
-## [Create a workflow to bring data from your transactional relational database.](../workflow/README.md)
+
+## [Create a workflow to bring data from your transactional relational database.](../transformation/README.md)
 
 
 ## License
