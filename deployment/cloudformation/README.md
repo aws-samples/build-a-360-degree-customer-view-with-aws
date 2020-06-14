@@ -1,7 +1,7 @@
 ## Deploy CloudFormation template to create basic infrastructure
 
 
-**Step 1:** Download Cloudformation template [cf-360view.yaml : Right click here and Save Link as File.](../../cloudformation/cf-360view.yaml)
+**Step 1:** Download Cloudformation template [cf-360view.yaml : Right click here and Save Link as File.](https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/cloudformation/cf-360view.yaml)
 
 ![cf 0](pic-cf0.png)
 
