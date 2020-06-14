@@ -74,7 +74,7 @@ After registration you will see a screen like the following.
 
 ![cf 10](pic-lf10.png)
 
-## Now [Load Data from Relational Database](../blueprint/README.md)
+## Now [Create a connection for relational database as source](../blueprint/README.md)
 
 
 ## License
