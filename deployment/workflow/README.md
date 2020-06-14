@@ -39,15 +39,15 @@ Go to [Lake Formation Workflows Blueprints](https://us-west-2.console.aws.amazon
 
 **Step 4:**
 
-![cf 5](pic-cw04.png)
+![bp 1](pic-wf05.png)
 
 **Step 5:**
 
-![cf 5](pic-cw05.png)
+![bp 1](pic-wf06.png)
 
 
 
-![cf 5](pic-cw06.png)
+![bp 1](pic-wf07.png)
 
 
 ## [Create a workflow to bring data from your transactional relational database.](../workflow/README.md)
