@@ -60,16 +60,19 @@ After registration you will see a screen like the following.
 ![cf 8](pic-lf08.png)
 
 **Step 8:** Grant same locations to **c360view-emrEc2Role**
-•	IAM users and roles: **c360view-emrEc2Role**.
+*	IAM users and roles: **c360view-emrEc2Role**.
 #### Storage locations:
-o	c360view-us-west-2-<your_account_id>-raw
-o	c360view-us-west-2-<your_account_id>-stage
-o	c360view-us-west-2-<your_account_id>-analytics
+*	c360view-us-west-2-<your_account_id>-raw
+*	c360view-us-west-2-<your_account_id>-stage
+*	c360view-us-west-2-<your_account_id>-analytics
 
 ![cf 9](pic-lf09.png)
 
 
+### You will see these grants for locations.
 
+
+![cf 10](pic-lf10.png)
 
 ## Now [Activate schedules](../schedules/README.md)
 
