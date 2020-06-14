@@ -6,11 +6,9 @@
 ![cf 0](pic-cf0.png)
 
 
-**Step 2:** Open the AWS [Cloudformation stack creation)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/template)
+**Step 2:** Open the AWS [Cloudformation stack creation)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/template) And Upload a template file.
 
-
-
-![cf 1](pic-cf1.png)
+![cf 1](pic-cf01.png)
 
 
 **Step 3:** Choose Next and fill up the parameters:
