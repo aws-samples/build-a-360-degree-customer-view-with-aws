@@ -43,7 +43,7 @@ After registration you will see a screen like the following.
 ![cf 6](pic-lf06.png)
 
 *	IAM users and roles: **c360-LambdaExecutionRole**
-Storage locations:
+#### Storage locations:
   *	c360view-us-west-2-<your_account_id>-raw
   *	c360view-us-west-2-<your_account_id>-stage
   *	c360view-us-west-2-<your_account_id>-analytics
@@ -52,7 +52,7 @@ Storage locations:
 
 **Step 7:** Grant same locations to **Glue-role-c360view**.
 *	IAM users and roles: **Glue-role-c360view**
-Storage locations:
+#### Storage locations:
   *	c360view-us-west-2-<your_account_id>-raw
   *	c360view-us-west-2-<your_account_id>-stage
   *	c360view-us-west-2-<your_account_id>-analytics
@@ -61,7 +61,7 @@ Storage locations:
 
 **Step 8:** Grant same locations to **c360view-emrEc2Role**
 •	IAM users and roles: **c360view-emrEc2Role**.
-Storage locations:
+#### Storage locations:
 o	c360view-us-west-2-<your_account_id>-raw
 o	c360view-us-west-2-<your_account_id>-stage
 o	c360view-us-west-2-<your_account_id>-analytics
