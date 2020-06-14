@@ -59,7 +59,7 @@ Edit your connection again and change the Subnet to another one.
 
 Then test the connection with the new chosen subnet until it works.
 
-## Setup [Lake Formation](../lakeformation/README.md)
+## Setup [Execute a crawler at AWS Glue Console to get tables definitions from your raw bucket](../crawler/README.md)
 
 
 ## License
