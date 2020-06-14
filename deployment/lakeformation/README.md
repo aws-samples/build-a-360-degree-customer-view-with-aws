@@ -42,23 +42,31 @@ After registration you will see a screen like the following.
 
 ![cf 6](pic-lf06.png)
 
-*	IAM users and roles: c360-LambdaExecutionRole
-*	Storage locations:
+*	IAM users and roles: **c360-LambdaExecutionRole**
+Storage locations:
   *	c360view-us-west-2-<your_account_id>-raw
   *	c360view-us-west-2-<your_account_id>-stage
   *	c360view-us-west-2-<your_account_id>-analytics
 
 ![cf 7](pic-lf07.png)
 
-**Step 7:** Grant same locations to Glue-role-c360view.
-*	IAM users and roles: Glue-role-c360view
-*	Storage locations:
+**Step 7:** Grant same locations to **Glue-role-c360view**.
+*	IAM users and roles: **Glue-role-c360view**
+Storage locations:
   *	c360view-us-west-2-<your_account_id>-raw
   *	c360view-us-west-2-<your_account_id>-stage
   *	c360view-us-west-2-<your_account_id>-analytics
 
 ![cf 8](pic-lf08.png)
 
+**Step 8:** Grant same locations to **c360view-emrEc2Role**
+•	IAM users and roles: **c360view-emrEc2Role**.
+Storage locations:
+o	c360view-us-west-2-<your_account_id>-raw
+o	c360view-us-west-2-<your_account_id>-stage
+o	c360view-us-west-2-<your_account_id>-analytics
+
+![cf 9](pic-lf09.png)
 
 
 
