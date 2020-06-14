@@ -85,7 +85,7 @@ GA sessions data, at data/GA/ga_session_20YYMMDD folders.
 **Step 5:**
 
 
-## Setup [Lake Formation](../lakeformation/README.md)
+## Now [Activate schedules](../schedules/README.md)
 
 
 ## License
