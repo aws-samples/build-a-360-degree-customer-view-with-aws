@@ -74,7 +74,7 @@ After registration you will see a screen like the following.
 
 ![cf 10](pic-lf10.png)
 
-## Now [Activate schedules](../schedules/README.md)
+## Now [Load Data from Relational Database](../blueprint/README.md)
 
 
 ## License
