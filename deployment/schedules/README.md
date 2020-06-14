@@ -51,56 +51,25 @@ def lambda_handler(event, context):
     s3.Object(BUCKET_NAME, PATH_TO+'/ga_sessions_' + table+'/ga_sessions_'+table+'.json').put(Body=tofile)
 ```
 
-* **Stack name:** c360view
-*	**Network Configuration:**
- *	Which VPC should this be deployed to?: *Default VPC (172.31.0.0/16)*
- *	SubnetAz1: (172.31.0.0/20) (look for this IP range)
- *	SubnetAz2: (172.31.16.0/20) (look for this IP range)
-*	**InstanceKeyPairParameter:** c360view-oregon (the one that you created before)
-
-![cf 2](pic-cf2.png)
+If you want to this code you have to install the the gcloud python sdk libraries directory and generate a bqfile.json with your gcloud service account credentials, then zip the library directory, bqfile.json, and your lambda.py to deploy it to AWS Lambda functions.
+Set three environments variables to use it or call table, path_to and bucket.
 
 
-**Step 4:** Choose Next for the next window.
+**Step 1:** Go to [Amazon S3](https://s3.console.aws.amazon.com/s3/home?region=us-west-2) console to check the data in your raw bucket.
+Go to Amazon S3 console to check the data in your raw bucket.
+
+Search for c360view buckets.
+
+![sw 0](pic-sw00.png)
 
 
-**Step 5:** Check the “I acknowledge that AWS CloudFormation might create IAM resources.”  and Create stack.
+**Step 2:**
 
-![cf 3](pic-cf3.png)
+**Step 3:**
 
-**Step 6:** Go to Resources tab to look for completion of resources.
+**Step 4:**
 
-![cf 4](pic-cf4.png)
-
-The template has created the following resources to optimize your time.
-3 Amazon S3 buckets:
-*	RawDataS3Bucket
-*	StageDataS3Bucket
-*	AnalyticsDataS3Bucket
-
-1 RDS instance with PostgreSQL database to simulate your transaction database.
-*	RDSSource – sourcemf
-
-6 Lambda functions to generate data for different source.
-*	c360viewCRMApi
-*	c360viewGetCRMApi
-*	c360viewGetGaTables
-*	c360viewMFgenAccount
-*	c360viewMFgenCard
-*	c360viewMFgenGBank
-5 CloudWatch events schedules, to trigger the Lambda functions.
-
-2 Security group, firewalls, one for the EC2 instance, other for Replication instances and Lambda functions.
-
-1 Role for the AWS Lambda functions
-1 Role for the AWS Glue
-
-1 Amazon EMR cluster
-
-Check the status of each resource, and order by resource status.
-
-
-If the resource Type “AWS::RDS::DBInstance” and “AWS::EMR::Cluster” are the only with status CREATE_IN_PROGRESS, and all the others are CREATE_COMPLETE you can continue the execution.
+**Step 5:**
 
 
 ## Now [Activate schedules](../schedules/README.md)
