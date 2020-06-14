@@ -52,7 +52,7 @@ You will come back later to this workflow, while it starts let’s perform some 
 
 
 
-## [Create a workflow to bring data from your transactional relational database.](../transformation/README.md)
+## [Perform transformation with source raw tables and to have it flatten and transformed to parquet files.](../transformation/README.md)
 
 
 ## License
