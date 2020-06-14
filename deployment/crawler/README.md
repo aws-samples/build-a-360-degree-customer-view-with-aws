@@ -36,7 +36,7 @@ You should see **one table** added by the crawler.
 ![cf 5](pic-cw06.png)
 
 
-## Setup [Execute a crawler at AWS Glue Console to get tables definitions from your raw bucket](../crawler/README.md)
+## [Create a workflow to bring data from your transactional relational database.](../workflow/README.md)
 
 
 ## License
