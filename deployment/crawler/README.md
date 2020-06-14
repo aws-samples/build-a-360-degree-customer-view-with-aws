@@ -16,25 +16,22 @@
 
 
 
-**Step 3:** It will show five tables added.
+**Step 3:** You should see 5 tables added by Crawler.
 
 ![cf 2](pic-cw02.png)
 
 
-**Step 4:** You should see 5 tables added by Crawler.
 
-![cf 3](pic-cw03.png)
-
-**Step 5:** You can verify them going to Database -> Tables in the same console.
+**Step 4:** You can verify them going to Database -> Tables in the same console.
 
 ![cf 5](pic-cw04.png)
 
-**Step 6:** Select Crawlerc360visitorid and run crawler.
+**Step 5:** Select Crawlerc360visitorid and run crawler.
 
 ![cf 5](pic-cw05.png)
 
 
-You should see one table added by the crawler.
+You should see **one table** added by the crawler.
 
 ![cf 5](pic-cw06.png)
 
