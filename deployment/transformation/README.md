@@ -63,7 +63,7 @@ Refresh your browser to check for completion.
 
 
 
-## [Perform transformation with source raw tables and to have it flatten and transformed to parquet files.](../transformation/README.md)
+## [Access Amazon Athena console to check the raw and stage tables created so far.](../athena/README.md)
 
 
 ## License
