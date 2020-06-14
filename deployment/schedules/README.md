@@ -63,9 +63,22 @@ Search for c360view buckets.
 ![sw 0](pic-sw00.png)
 
 
-**Step 2:**
+**Step 2:** Click on the c360view-us-west-2-<YOUR_ACCOUNT_ID>-raw bucket.
+Refresh the bucket while the lambda codes are running.
 
-**Step 3:**
+![sw 1](pic-sw01.png)
+
+
+**Step 3:** Enter inside each folder to check the files created inside.
+
+![sw 2](pic-sw02.png)
+
+Account data, at account folder.
+
+![sw 3](pic-sw03.png)
+
+GA sessions data, at data/GA/ga_session_20YYMMDD folders.
+
 
 **Step 4:**
 
