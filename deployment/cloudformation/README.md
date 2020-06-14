@@ -2,6 +2,9 @@
 
 **Step 1:** [Download Cloudformation template](https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/cloudformation/cf-360view.yaml)
 
+
+<a href="https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/cloudformation/cf-360view.yaml" download>Click to Download</a>
+
 **Step 1:** Open the AWS [Cloudformation template (righ click here and Open **new tab**)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/template)
 
 
