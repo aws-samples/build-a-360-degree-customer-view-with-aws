@@ -45,7 +45,7 @@ For your ongoing database changes, you can create an Incremental Workflow and us
 
 
 
-## [PPerform transformation with relational database source raw tables and to have it transformed to parquet files.](../transdb/README.md)
+## [Perform transformation with relational database source raw tables and to have it transformed to parquet files.](../transdb/README.md)
 
 
 ## License
