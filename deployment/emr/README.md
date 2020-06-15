@@ -35,7 +35,9 @@ Pick the name from Amazon S3 console
 **Step 5:** check the job status, going from pending to running.
 
 ![bp 1](pic-em06.png)
+
 After completion the job has created a denormalized table using PySpark.
+
 ![bp 1](pic-em07.png)
 
 **Step 6:** go to [Athena console](https://us-west-2.console.aws.amazon.com/athena/home?region=us-west-2#query) and check the new c360denormalized table on c360view_analytics database.
