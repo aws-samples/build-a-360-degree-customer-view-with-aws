@@ -49,7 +49,7 @@ If you go to c360view_stage database you will find a different scenario.
 
 
 
-## [Access Amazon Athena console to check the raw and stage tables created so far.](../athena/README.md)
+## [Let’s go back to the Lake formation workflow that extracts data from our relational database, to see it has finished.](../lfworkflow/README.md)
 
 
 ## License
