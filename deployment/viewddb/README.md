@@ -76,7 +76,7 @@ For Data scientists and business users, you can also use Amazon Sagemaker and Am
 
 Important, after playing with the environment disable or delete all the CloudWatch schedules created to avoid creating new data, empty your c360view S3 buckets and go to CloudFormation console to delete the whole c360view stack, that will delete your transactional database RDS, EMR cluster and all the other resources.
 
-##Summary
+## Summary
 
 In this blog you have learned a point of view of a 360-degree customer strategy. You have seen the data lake strategy using Amazon S3 and Lake Formation. We have explored some dimension for financial services, but as you follow the processes to bring data sources and the processing tools, it’s easy to add new sources and new calculations.
 You have used several AWS services such AWS Lambda functions used to process data using Athena API and Step functions, then AWS Glue for spark and python jobs, and finally the capabilities of Amazon EMR using Spark and Hive to generate the final tables in Data Lake and also on DynamoDB.
