@@ -1,7 +1,5 @@
 ## Now you are going to perform more advanced transformations using AWS Glue job, first using python shell, then with Pyspark.
 
-Check in your step functions [State machine console](https://us-west-2.console.aws.amazon.com/states/home?region=us-west-2#/statemachines).
-
 
 **Step 1:** Go to [AWS Glue jobs console](https://us-west-2.console.aws.amazon.com/glue/home?region=us-west-2#etl:tab=jobs), select n1_c360_dispositions, Python shell job.
 
