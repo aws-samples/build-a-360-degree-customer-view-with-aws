@@ -80,9 +80,6 @@ Account data, at account folder.
 GA sessions data, at data/GA/ga_session_20YYMMDD folders.
 
 
-**Step 4:**
-
-**Step 5:**
 
 
 ## Setup [Lake Formation](../lakeformation/README.md)

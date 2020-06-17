@@ -1,13 +1,13 @@
 ## Setup your Data Lake with Lake Formation
 
 
-**Step 1:** Go to the [Lake Formation console](Go to the Lake Formation console:):
+**Step 1:** Go to the [Lake Formation console](https://us-west-2.console.aws.amazon.com/lakeformation/home?region=us-west-2):
 
 ![lf 0](pic-lf00.png)
 
-
 If this first screen doesn’t open like this go to Permissions -> Admins and database creators, and grant your user as administrator.
 
+If you have a Get Started screen, click on Get Started.
 
 **Step 2:** Add your user as Data Lake admin, so your user can administer storage areas, databases and tables.
 
