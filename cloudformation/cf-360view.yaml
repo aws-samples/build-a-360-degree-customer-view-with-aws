@@ -83,7 +83,9 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
   c360Ec2Instance:
-    DependsOn: c360EC2InstanceProfile
+    DependsOn:
+      - c360EC2InstanceProfile
+      - LambdaIngestionPostgresql
     Type: 'AWS::EC2::Instance'
     Properties:
       KeyName:
