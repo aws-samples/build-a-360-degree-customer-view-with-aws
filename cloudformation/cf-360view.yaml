@@ -88,7 +88,7 @@ Resources:
     Properties:
       KeyName:
         Ref: InstanceKeyPairParameter
-      ImageId: 'ami-00e59dfdb19a6debc'
+      ImageId: 'ami-0e34e7b9ca0ace12d'
       InstanceType: t3.large
       IamInstanceProfile: 'EC2InstanceProfile-c360view'
       UserData:

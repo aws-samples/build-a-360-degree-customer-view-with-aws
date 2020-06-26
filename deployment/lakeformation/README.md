@@ -5,9 +5,10 @@
 
 ![lf 0](pic-lf00.png)
 
-If this first screen doesn’t open like this go to Permissions -> Admins and database creators, and grant your user as administrator.
-
 If you have a Get Started screen, click on Get Started.
+
+If are now on Lake Formation console go to Permissions -> **Admins and database creators**, and grant your user as administrator.
+
 
 **Step 2:** Add your user as Data Lake admin, so your user can administer storage areas, databases and tables.
 
