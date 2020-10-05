@@ -225,51 +225,15 @@ Resources:
           Principal:
             Service:
             - glue.amazonaws.com
+            - lambda.amazonaws.com
+            - ec2.amazonaws.com
           Action:
           - sts:AssumeRole
       Path: "/"
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
-      Policies:
-      - PolicyName: root
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - lakeformation:GetDataAccess
-            - lakeformation:GrantPermissions
-            - athena:*
-            - glue:*
-            Resource: '*'
-          - Effect: Allow
-            Action:
-            - iam:GetRole
-            - iam:PassRole
-            Resource: '*'
-          - Effect: Allow
-            Action:
-            - s3:*
-            Resource:
-            - !Join ['', ['arn:aws:s3:::', !Ref 'RawDataS3Bucket', '*']]
-            - !Join ['', ['arn:aws:s3:::', !Ref 'StageDataS3Bucket', '*']]
-            - !Join ['', ['arn:aws:s3:::', !Ref 'AnalyticsDataS3Bucket', '*']]
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: c360-LambdaExecutionRole
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - lambda.amazonaws.com
-          Action:
-          - sts:AssumeRole
-      Path: "/"
-      ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/AmazonAthenaFullAccess
+        - arn:aws:iam::aws:policy/AmazonAthenaFullAccess
+        - arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole
       Policies:
       - PolicyName: root
         PolicyDocument:
@@ -297,6 +261,30 @@ Resources:
             - glue:GetDatabases
             - glue:GetTable
             Resource: "*"
+          - Effect: Allow
+            Action:
+            - lakeformation:GetDataAccess
+            - lakeformation:GrantPermissions
+            - athena:*
+            - glue:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - dynamodb:*
+            Resource: 
+            - !Sub 'arn:aws:dynamodb:us-west-2:${AWS::AccountId}:table/DDBc360view'
+          - Effect: Allow
+            Action:
+            - iam:GetRole
+            - iam:PassRole
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - s3:*
+            Resource:
+            - !Join ['', ['arn:aws:s3:::', !Ref 'RawDataS3Bucket', '*']]
+            - !Join ['', ['arn:aws:s3:::', !Ref 'StageDataS3Bucket', '*']]
+            - !Join ['', ['arn:aws:s3:::', !Ref 'AnalyticsDataS3Bucket', '*']]
   LambdaIngestionPostgresql:
     Type: AWS::Lambda::Function
     Properties:
@@ -304,7 +292,7 @@ Resources:
         S3Bucket: !Ref Sourcebucket
         S3Key: "lambda/pg-generator.zip"
       Description: This lambda simulates transactions to c360 source db
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt GlueExecutionRole.Arn
       Environment:
         Variables:
           RDS_ENDPOINT: !GetAtt RDSSource.Endpoint.Address
@@ -326,7 +314,7 @@ Resources:
         S3Bucket: !Ref Sourcebucket
         S3Key: "lambda/getgatables.zip"
       Description: This lambda simulates GA data
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt GlueExecutionRole.Arn
       Environment:
         Variables:
           BucketName: !Ref RawDataS3Bucket
@@ -345,7 +333,7 @@ Resources:
         S3Bucket: !Ref Sourcebucket
         S3Key: "lambda/mf-generator.zip"
       Description: This lambda simulates account data from mainframe
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt GlueExecutionRole.Arn
       Environment:
         Variables:
           BucketName: !Ref RawDataS3Bucket
@@ -369,7 +357,7 @@ Resources:
         S3Bucket: !Ref Sourcebucket
         S3Key: "lambda/mf-generator.zip"
       Description: This lambda simulates general banking data from mainframe
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt GlueExecutionRole.Arn
       Environment:
         Variables:
           BucketName: !Ref RawDataS3Bucket
@@ -393,7 +381,7 @@ Resources:
         S3Bucket: !Ref Sourcebucket
         S3Key: "lambda/mf-generator.zip"
       Description: This lambda simulates card information extract to files
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt GlueExecutionRole.Arn
       Environment:
         Variables:
           BucketName: !Ref RawDataS3Bucket
@@ -417,7 +405,7 @@ Resources:
         S3Bucket: !Ref Sourcebucket
         S3Key: "lambda/crmapi.zip"
       Description: This lambda simulates c360 CRM API
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt GlueExecutionRole.Arn
       FunctionName: c360viewCRMApi
       Handler: crmapi.lambda_handler
       MemorySize: 256
@@ -430,7 +418,7 @@ Resources:
         S3Bucket: !Ref Sourcebucket
         S3Key: "lambda/getapi.zip"
       Description: This lambda calls c360 CRM API
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt GlueExecutionRole.Arn
       Environment:
         Variables:
           BucketName: !Ref RawDataS3Bucket
@@ -517,7 +505,7 @@ Resources:
               except:
                   print('there was a problem executing your  query: {} against: {} database in region {} with output to {}/{}'.format(params['query'],params['database'],params['region'],params['bucket'],params['path']))
       Description: This lambda execute athena queries
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt GlueExecutionRole.Arn
       FunctionName: c360viewAthenaExecution
       Handler: index.lambda_handler
       MemorySize: 256
@@ -546,7 +534,7 @@ Resources:
                       print(e)
                       print('error on get response for query_id {}'.format(event['payload']))
       Description: This lambda check athena query completion
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt GlueExecutionRole.Arn
       FunctionName: c360viewCheckAthenaExecution
       Handler: index.lambda_handler
       MemorySize: 256
@@ -591,7 +579,7 @@ Resources:
                       print('copied.')
               return('ok')
       Description: This lambda copies artifacts to s3
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt GlueExecutionRole.Arn
       FunctionName: c360viewCopyPythonLibraries
       Handler: index.lambda_handler
       MemorySize: 256
@@ -774,27 +762,12 @@ Resources:
       Path: /
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole'
-  emrEc2Role:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: c360view-emrEc2Role
-      AssumeRolePolicyDocument:
-        Version: 2008-10-17
-        Statement:
-          - Sid: ''
-            Effect: Allow
-            Principal:
-              Service: ec2.amazonaws.com
-            Action: 'sts:AssumeRole'
-      Path: /
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role'
   emrEc2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
       Roles:
-        - !Ref emrEc2Role
+        - !Ref GlueExecutionRole
   StatesExecutionRole:
     Type: "AWS::IAM::Role"
     Properties:
