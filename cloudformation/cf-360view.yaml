@@ -15,6 +15,15 @@ Parameters:
     Description: Source bucket with library and scripts, do NOT change it unless you copied the source code to your own bucket
     Type: "String"
     Default: "hhug-c360view"
+  RDSPassword:
+    Description: Password for postgreSql database, must begin with a letter and contain only alphanumeric characters, 8 to 16 lenght.
+    Type: "String"
+    Default: "Tim3t0change"  
+    NoEcho: 'true'
+    MinLength: '8'
+    MaxLength : '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters, 8 to 16 lenght.
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -36,6 +45,11 @@ Metadata:
           default: "Source code"
         Parameters:
           - Sourcebucket
+      -
+        Label:
+          default: "Database Password"
+        Parameters:
+          - RDSPassword    
     ParameterLabels:
       VPCID:
         default: "VPC to deploy to"
@@ -52,7 +66,7 @@ Resources:
       PubliclyAccessible: No
       EngineVersion: "10.6"
       DBInstanceIdentifier: sourcemf
-      MasterUserPassword: Tim3t0change
+      MasterUserPassword: !Ref RDSPassword
       MasterUsername: sourcemf
       VPCSecurityGroups:
         - Ref: RDSSourceSecurityGroup
@@ -296,6 +310,7 @@ Resources:
       Environment:
         Variables:
           RDS_ENDPOINT: !GetAtt RDSSource.Endpoint.Address
+          RDS_PASSWORD: !Ref RDSPassword
       FunctionName: c360viewIngestionPostgresql
       Handler: postgresql.lambda_handler
       MemorySize: 256

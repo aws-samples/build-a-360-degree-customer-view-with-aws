@@ -7,6 +7,7 @@ import time
 import psycopg2
 
 RDS_ENDPOINT = os.getenv('RDS_ENDPOINT')
+RDS_PASSWORD = os.getenv('RDS_PASSWORD')
 
 def getSQL():
     x = random.randint(1,2)
@@ -28,7 +29,7 @@ def getSQL():
 def lambda_handler(event, context):
     begining = datetime.datetime.now()
     newtime = begining
-    con = psycopg2.connect(host=RDS_ENDPOINT, database='sourcemf', user='sourcemf', password='Tim3t0change')
+    con = psycopg2.connect(host=RDS_ENDPOINT, database='sourcemf', user='sourcemf', password=RDS_PASSWORD)
     cur = con.cursor()
     #sql = 'drop table if exists cidade'
     #cur.execute(sql)
