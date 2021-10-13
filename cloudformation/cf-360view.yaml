@@ -75,6 +75,12 @@ Resources:
         -
           Key: Name
           Value: "Source PostgreSQL Database"
+  RDSInstanceSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: c360view-secret
+      Description: This is c360 rds instance secret
+      SecretString: !Join ['', ['{"username":"sourcemf","password":"', !Ref 'RDSPassword', '"}']]
   RawDataS3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
@@ -108,18 +114,19 @@ Resources:
       InstanceType: t3.large
       IamInstanceProfile: 'EC2InstanceProfile-c360view'
       UserData:
-        Fn::Base64:
-          !Sub |
-              #!/bin/bash -ex
-              sudo yum install gcc -y
-              sudo yum install python3.7 -y
-              sudo yum install postgresql-devel -y
-              mkdir lambda-pg-generator
-              cd lambda-pg-generator
-              pip3 install psycopg2-binary -t .
-              wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/lambda/lambda-pg-generator/postgresql.py
-              zip -r ../newlambda.zip postgresql.py psycopg2*
-              aws lambda update-function-code --function-name c360viewIngestionPostgresql --zip-file fileb://../newlambda.zip --region us-west-2
+        Fn::Base64: !Sub |
+                #!/bin/bash -ex
+                sudo yum install gcc -y
+                sudo yum install python3.7 -y
+                sudo yum install postgresql-devel -y
+                mkdir lambda-pg-generator
+                cd lambda-pg-generator
+                pip3 install psycopg2-binary -t .
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/lambda/lambda-pg-generator/postgresql.py
+                mysecret=${RDSInstanceSecret}
+                sed -i "s/c360view-secret-placeholder/$mysecret/g" "postgresql.py"
+                zip -r ../newlambda.zip postgresql.py psycopg2*
+                aws lambda update-function-code --function-name c360viewIngestionPostgresql --zip-file fileb://../newlambda.zip --region us-west-2
       Tags:
         - Key: "Name"
           Value: "c360Instance"
@@ -225,6 +232,18 @@ Resources:
             Resource: '*'
           - Effect: Allow
             Action:
+            - secretsmanager:ListSecrets
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - secretsmanager:GetSecretValue
+            - secretsmanager:GetResourcePolicy
+            - secretsmanager:DescribeSecret
+            - secretsmanager:ListSecretVersionIds
+            Resource: 
+            - !Ref RDSInstanceSecret
+          - Effect: Allow
+            Action:
             - lambda:*
             Resource:
             - !Sub 'arn:aws:lambda:us-west-2:${AWS::AccountId}:function:c360viewIngestionPostgresql'
@@ -289,6 +308,18 @@ Resources:
             - !Sub 'arn:aws:dynamodb:us-west-2:${AWS::AccountId}:table/DDBc360view'
           - Effect: Allow
             Action:
+            - secretsmanager:ListSecrets
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - secretsmanager:GetSecretValue
+            - secretsmanager:GetResourcePolicy
+            - secretsmanager:DescribeSecret
+            - secretsmanager:ListSecretVersionIds
+            Resource: 
+            - !Ref RDSInstanceSecret
+          - Effect: Allow
+            Action:
             - iam:GetRole
             - iam:PassRole
             Resource: '*'
@@ -310,7 +341,6 @@ Resources:
       Environment:
         Variables:
           RDS_ENDPOINT: !GetAtt RDSSource.Endpoint.Address
-          RDS_PASSWORD: !Ref RDSPassword
       FunctionName: c360viewIngestionPostgresql
       Handler: postgresql.lambda_handler
       MemorySize: 256
