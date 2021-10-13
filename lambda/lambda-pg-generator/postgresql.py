@@ -7,6 +7,7 @@ import time
 import psycopg2
 import base64
 from botocore.exceptions import ClientError
+import json
 
 RDS_ENDPOINT = os.getenv('RDS_ENDPOINT')
 
