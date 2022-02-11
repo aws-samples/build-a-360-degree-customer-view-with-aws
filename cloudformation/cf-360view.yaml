@@ -119,6 +119,48 @@ Resources:
                 sudo yum install gcc -y
                 sudo yum install python3.7 -y
                 sudo yum install postgresql-devel -y
+                mkdir copy-files
+                cd copy-files
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/lambda/getgatables.zip
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/lambda/mf-generator.zip
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/lambda/crmapi.zip
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/lambda/getapi.zip
+                aws lambda update-function-code --function-name c360viewGetGaTables --zip-file fileb://getgatables.zip --region us-west-2
+                aws lambda update-function-code --function-name c360viewMFgenAccount --zip-file fileb://mf-generator.zip --region us-west-2
+                aws lambda update-function-code --function-name c360viewMFgenGBank --zip-file fileb://mf-generator.zip --region us-west-2
+                aws lambda update-function-code --function-name c360viewMFgenCard --zip-file fileb://mf-generator.zip --region us-west-2
+                aws lambda update-function-code --function-name c360viewCRMApi --zip-file fileb://crmapi.zip --region us-west-2
+                aws lambda update-function-code --function-name c360viewGetCRMApi --zip-file fileb://getapi.zip --region us-west-2                
+                mkdir s3files
+                cd s3files
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/library/awswrangler-0.0.12-glue-none-any.whl
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/library/n1_c360_dispositions.py
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/library/cust360_etl_mf_trans.py
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/data/visitors/ga_visitors.csv
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/library/c360_analytics.py
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/library/c360dynamodbload.q
+                aws s3 cp awswrangler-0.0.12-glue-none-any.whl s3://${StageDataS3Bucket}/library/awswrangler-0.0.12-glue-none-any.whl
+                aws s3 cp n1_c360_dispositions.py s3://${StageDataS3Bucket}/library/n1_c360_dispositions.py
+                aws s3 cp cust360_etl_mf_trans.py s3://${StageDataS3Bucket}/library/cust360_etl_mf_trans.py
+                aws s3 cp ga_visitors.csv s3://${StageDataS3Bucket}/data/visitors/ga_visitors.csv
+                aws s3 cp c360_analytics.py s3://${StageDataS3Bucket}/library/c360_analytics.py
+                aws s3 cp c360dynamodbload.q s3://${StageDataS3Bucket}/library/c360dynamodbload.q
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/data/GA/ga_sessions_20170724/ga_sessions_20170724.json
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/data/GA/ga_sessions_20170725/ga_sessions_20170725.json
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/data/GA/ga_sessions_20170726/ga_sessions_20170726.json
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/data/GA/ga_sessions_20170727/ga_sessions_20170727.json
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/data/GA/ga_sessions_20170728/ga_sessions_20170728.json
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/data/GA/ga_sessions_20170729/ga_sessions_20170729.json
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/data/GA/ga_sessions_20170730/ga_sessions_20170730.json
+                wget https://raw.githubusercontent.com/aws-samples/build-a-360-degree-customer-view-with-aws/master/data/GA/ga_sessions_20170731/ga_sessions_20170731.json
+                aws s3 cp ga_sessions_20170724.json s3://${RawDataS3Bucket}/data/GA/ga_sessions_20170724/ga_sessions_20170724.json
+                aws s3 cp ga_sessions_20170725.json s3://${RawDataS3Bucket}/data/GA/ga_sessions_20170725/ga_sessions_20170725.json
+                aws s3 cp ga_sessions_20170726.json s3://${RawDataS3Bucket}/data/GA/ga_sessions_20170726/ga_sessions_20170726.json
+                aws s3 cp ga_sessions_20170727.json s3://${RawDataS3Bucket}/data/GA/ga_sessions_20170727/ga_sessions_20170727.json
+                aws s3 cp ga_sessions_20170728.json s3://${RawDataS3Bucket}/data/GA/ga_sessions_20170728/ga_sessions_20170728.json
+                aws s3 cp ga_sessions_20170729.json s3://${RawDataS3Bucket}/data/GA/ga_sessions_20170729/ga_sessions_20170729.json
+                aws s3 cp ga_sessions_20170730.json s3://${RawDataS3Bucket}/data/GA/ga_sessions_20170730/ga_sessions_20170730.json
+                aws s3 cp ga_sessions_20170731.json s3://${RawDataS3Bucket}/data/GA/ga_sessions_20170731/ga_sessions_20170731.json
                 mkdir lambda-pg-generator
                 cd lambda-pg-generator
                 pip3 install psycopg2-binary -t .
@@ -223,6 +265,13 @@ Resources:
           Statement:
           - Effect: Allow
             Action:
+            - s3:*
+            Resource:
+            - !Join ['', ['arn:aws:s3:::', !Ref 'RawDataS3Bucket', '*']]
+            - !Join ['', ['arn:aws:s3:::', !Ref 'StageDataS3Bucket', '*']]
+            - !Join ['', ['arn:aws:s3:::', !Ref 'AnalyticsDataS3Bucket', '*']]
+          - Effect: Allow
+            Action:
             - lambda:ListFunctions
             - lambda:ListEventSourceMappings
             - lambda:ListLayerVersions
@@ -247,6 +296,12 @@ Resources:
             - lambda:*
             Resource:
             - !Sub 'arn:aws:lambda:us-west-2:${AWS::AccountId}:function:c360viewIngestionPostgresql'
+            - !Sub 'arn:aws:lambda:us-west-2:${AWS::AccountId}:function:c360viewGetGaTables'
+            - !Sub 'arn:aws:lambda:us-west-2:${AWS::AccountId}:function:c360viewMFgenAccount'
+            - !Sub 'arn:aws:lambda:us-west-2:${AWS::AccountId}:function:c360viewMFgenGBank'
+            - !Sub 'arn:aws:lambda:us-west-2:${AWS::AccountId}:function:c360viewMFgenCard'
+            - !Sub 'arn:aws:lambda:us-west-2:${AWS::AccountId}:function:c360viewCRMApi'
+            - !Sub 'arn:aws:lambda:us-west-2:${AWS::AccountId}:function:c360viewGetCRMApi'
   GlueExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -334,8 +389,9 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref Sourcebucket
-        S3Key: "lambda/pg-generator.zip"
+        ZipFile: |
+          import boto3
+          import os
       Description: This lambda simulates transactions to c360 source db
       Role: !GetAtt GlueExecutionRole.Arn
       Environment:
@@ -356,8 +412,9 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref Sourcebucket
-        S3Key: "lambda/getgatables.zip"
+        ZipFile: |
+          import boto3
+          import os
       Description: This lambda simulates GA data
       Role: !GetAtt GlueExecutionRole.Arn
       Environment:
@@ -375,8 +432,9 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref Sourcebucket
-        S3Key: "lambda/mf-generator.zip"
+        ZipFile: |
+          import boto3
+          import os
       Description: This lambda simulates account data from mainframe
       Role: !GetAtt GlueExecutionRole.Arn
       Environment:
@@ -399,8 +457,9 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref Sourcebucket
-        S3Key: "lambda/mf-generator.zip"
+        ZipFile: |
+          import boto3
+          import os
       Description: This lambda simulates general banking data from mainframe
       Role: !GetAtt GlueExecutionRole.Arn
       Environment:
@@ -423,8 +482,9 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref Sourcebucket
-        S3Key: "lambda/mf-generator.zip"
+        ZipFile: |
+          import boto3
+          import os
       Description: This lambda simulates card information extract to files
       Role: !GetAtt GlueExecutionRole.Arn
       Environment:
@@ -447,8 +507,9 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref Sourcebucket
-        S3Key: "lambda/crmapi.zip"
+        ZipFile: |
+          import boto3
+          import os
       Description: This lambda simulates c360 CRM API
       Role: !GetAtt GlueExecutionRole.Arn
       FunctionName: c360viewCRMApi
@@ -460,8 +521,9 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref Sourcebucket
-        S3Key: "lambda/getapi.zip"
+        ZipFile: |
+          import boto3
+          import os
       Description: This lambda calls c360 CRM API
       Role: !GetAtt GlueExecutionRole.Arn
       Environment:
