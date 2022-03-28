@@ -64,7 +64,7 @@ Resources:
       DBName: sourcemf
       Engine: postgres
       PubliclyAccessible: No
-      EngineVersion: "10.6"
+      EngineVersion: "12.10"
       DBInstanceIdentifier: sourcemf
       MasterUserPassword: !Ref RDSPassword
       MasterUsername: sourcemf
@@ -110,7 +110,7 @@ Resources:
     Properties:
       KeyName:
         Ref: InstanceKeyPairParameter
-      ImageId: 'ami-0e34e7b9ca0ace12d'
+      ImageId: 'ami-00ee4df451840fa9d'
       InstanceType: t3.large
       IamInstanceProfile: 'EC2InstanceProfile-c360view'
       UserData:
@@ -190,7 +190,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
-          CidrIp: 0.0.0.0/0
+          CidrIp: 172.31.0.0/16
   InboundRuleAccess:
       Type: AWS::EC2::SecurityGroupIngress
       Properties:
@@ -224,7 +224,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
-          CidrIp: 0.0.0.0/0
+          CidrIp: 172.31.0.0/16
   LambdaInstanceSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -236,7 +236,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: '22'
           ToPort: '22'
-          CidrIp: 0.0.0.0/0
+          CidrIp: 172.31.0.0/16
   c360EC2InstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -348,6 +348,7 @@ Resources:
             - lakeformation:GetDataAccess
             - glue:GetDatabases
             - glue:GetTable
+            - glue:GetUserDefinedFunctions
             Resource: "*"
           - Effect: Allow
             Action:
