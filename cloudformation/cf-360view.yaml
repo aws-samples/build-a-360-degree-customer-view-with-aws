@@ -86,6 +86,10 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       BucketName: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-raw'
+      BucketEncryption: 
+        ServerSideEncryptionConfiguration: 
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       VersioningConfiguration:
         Status: Enabled
   StageDataS3Bucket:
@@ -93,6 +97,10 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       BucketName: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-stage'
+      BucketEncryption: 
+        ServerSideEncryptionConfiguration: 
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       VersioningConfiguration:
         Status: Enabled
   AnalyticsDataS3Bucket:
@@ -100,6 +108,10 @@ Resources:
     DeletionPolicy: Delete
     Properties:
       BucketName: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-analytics'
+      BucketEncryption: 
+        ServerSideEncryptionConfiguration: 
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       VersioningConfiguration:
         Status: Enabled
   c360Ec2Instance:
