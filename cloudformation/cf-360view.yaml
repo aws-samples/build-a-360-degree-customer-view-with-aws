@@ -85,6 +85,8 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
+      VersioningConfiguration:
+        Status: Enabled
       BucketName: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-raw'
       BucketEncryption: 
         ServerSideEncryptionConfiguration: 
@@ -96,6 +98,8 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
+      VersioningConfiguration:
+        Status: Enabled
       BucketName: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-stage'
       BucketEncryption: 
         ServerSideEncryptionConfiguration: 
@@ -107,6 +111,8 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
+      VersioningConfiguration:
+        Status: Enabled
       BucketName: !Sub 'c360view-${AWS::Region}-${AWS::AccountId}-analytics'
       BucketEncryption: 
         ServerSideEncryptionConfiguration: 
